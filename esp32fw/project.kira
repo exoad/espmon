@@ -1,0 +1,9 @@
+// The firmware half of the esp32 library: what only the board can do, imported as esp32.fw.<module>.
+// It declares C++ externs, so a program that targets py cannot depend on it; esp32 is the half that can.
+PROJECT: Project = Project { } with {
+    name = "esp32.fw"
+    srcDir = "src"
+    target = "cpp"
+    types = "strict"
+    dependencies = @mapOf("kira_stdlib", "../../RPLIDAR-C1/build/kira-toolchain/kira")
+}

@@ -1,0 +1,77 @@
+kira.io as io
+kira.test as test
+esp32.command as command
+esp32.command.Command as Command
+esp32.debounce.Debounce as Debounce
+esp32.lines.LineBuffer as LineBuffer
+
+// esp32_test: the library's line buffer, debounce and command parser.
+
+feed: (t: Suite, buf: LineBuffer, text: Str) Maybe<Str> {
+    got: Mutable<Maybe<Str>> = null
+    data: List<UInt8> = text.bytes()
+    for i: Size in 0..data.size() {
+        r: Maybe<Str> = buf.push(data[i])
+        if !r.isNull() {
+            got = r
+        }
+    }
+    got
+}
+
+linesAreCutAtTheNewline: (t: Suite) Void {
+    buf: LineBuffer = LineBuffer { 64 }
+    t.check(feed(t, buf, "hel").isNull(), "no line before the newline")
+    t.checkStr(feed(t, buf, "lo\r\n").value, "hello", "the line, its CR dropped")
+    t.checkStr(feed(t, buf, "\n").value, "", "an empty line")
+}
+
+aLongLineIsCut: (t: Suite) Void {
+    buf: LineBuffer = LineBuffer { 4 }
+    t.checkStr(feed(t, buf, "abcdefgh\n").value, "abcd", "cut at the cap")
+    t.checkStr(feed(t, buf, "xy\n").value, "xy", "the next line starts clean")
+}
+
+aPressNeedsItsStreak: (t: Suite) Void {
+    d: Debounce = Debounce { 3 }
+    t.check(!d.step(true), "one reading is not a press")
+    t.check(!d.step(true), "two are not")
+    t.check(d.step(true), "three are")
+    t.check(d.step(false), "one release reading keeps it down")
+    t.check(d.step(true), "a bounce resets the release streak")
+    t.check(d.step(false) && d.step(false), "two releases keep it down")
+    t.check(!d.step(false), "three release it")
+}
+
+noiseNeverPresses: (t: Suite) Void {
+    d: Debounce = Debounce { 2 }
+    pressed: Mutable<Bool> = false
+    for i: Size in 0..20 {
+        if d.step(i % 2 == 0) {
+            pressed = true
+        }
+    }
+    t.check(!pressed, "an alternating reading never holds")
+}
+
+commandsAreSplit: (t: Suite) Void {
+    c: Command = Command { "  LED on  3 " }
+    t.checkStr(c.verb(), "led", "the verb is lower case")
+    t.check(c.count() == 2, "two arguments")
+    t.checkStr(c.arg(0).value, "on", "the first argument as typed")
+    t.checkStr(c.arg(1).value, "3", "the second")
+    t.check(c.arg(2).isNull(), "none past the last")
+    e: Command = Command { "   " }
+    t.checkStr(e.verb(), "", "a blank line has no verb")
+    t.check(e.count() == 0, "and no arguments")
+}
+
+pub main: () Int32 {
+    t: Suite = Suite { title = "esp32_test - the esp32 library (lines, debounce, command)" }
+    linesAreCutAtTheNewline(t)
+    aLongLineIsCut(t)
+    aPressNeedsItsStreak(t)
+    noiseNeverPresses(t)
+    commandsAreSplit(t)
+    t.finish()
+}

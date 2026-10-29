@@ -1,0 +1,22 @@
+LF: UInt8 = 10
+CR: UInt8 = 13
+
+// Bytes in, lines out: what a serial port gives is cut at each newline, a CR dropped.
+pub LineBuffer: Mutable<Any> {
+    cap: Size
+    held: Mutable<List<UInt8>> = List<UInt8> { }
+
+    // The finished line when b is the newline, else none. A line past cap bytes is cut there.
+    pub push: (b: UInt8) Maybe<Str> {
+        if b == LF {
+            line: Str = Str.of(held.view())
+            held.clear()
+            line
+        } else {
+            if b != CR && held.size() < cap {
+                held.add(b)
+            }
+            null
+        }
+    }
+}

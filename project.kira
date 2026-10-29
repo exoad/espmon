@@ -1,14 +1,14 @@
+// The smoke firmware: the esp32 library's modules on a real board, built by PlatformIO.
 PROJECT: Project = Project { } with {
-    name = "esp32.fw"
+    name = "esp32.smoke"
     srcDir = "src"
     target = "cpp"
     cpp = Cpp {
         layout = "beside",
         runtimeDir = "lib",
         lineDirectives = false,
-        headerOnly = @listOf("esp32.fw.**"),
-        namespaces = @mapOf("esp32.fw.board", "board", "esp32.fw.app", "app")
+        headerOnly = @listOf("esp32.**")
     }
     types = "strict"
-    dependencies = @mapOf("kira_stdlib", "../RPLIDAR-C1/build/kira-toolchain/kira")
+    dependencies = @mapOf("kira_stdlib", "../RPLIDAR-C1/build/kira-toolchain/kira", "esp32", "esp32", "esp32.fw", "esp32fw")
 }

@@ -1,5 +1,0 @@
-// Kira's view of board.hxx: the C++ that stays C++.
-
-pub @_extern(cpp = "board::log", header = "board.hxx") log: (text: Str) Void;
-pub @_extern(cpp = "board::millis", header = "board.hxx") millis: () Int32;
-pub @_extern(cpp = "board::sleep", header = "board.hxx") sleep: (ms: Int32) Void;

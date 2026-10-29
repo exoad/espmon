@@ -1,0 +1,22 @@
+// A command line, "verb arg arg": the verb in lower case and the arguments as they were typed.
+pub Command: Mutable<Any> {
+    line: Str
+    parts: Mutable<List<Str>> = List<Str> { }
+
+    initially {
+        parts = line.splitWhitespace()
+    }
+
+    pub verb: () Str {
+        parts.isEmpty() ? "" : parts[0].toLower()
+    }
+
+    pub count: () Size {
+        parts.isEmpty() ? 0 : parts.size() - 1
+    }
+
+    // The nth argument, none past the last.
+    pub arg: (n: Size) Maybe<Str> {
+        n + 1 < parts.size() ? parts[n + 1] : null
+    }
+}

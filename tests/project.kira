@@ -1,0 +1,8 @@
+// The esp32 library's tests: compiled to Python and run on the host.
+PROJECT: Project = Project { } with {
+    name = "esp32.tests"
+    srcDir = "."
+    target = "py"
+    types = "strict"
+    dependencies = @mapOf("kira_stdlib", "../../RPLIDAR-C1/build/kira-toolchain/kira", "esp32", "../esp32")
+}

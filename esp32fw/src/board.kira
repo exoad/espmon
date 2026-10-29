@@ -1,0 +1,10 @@
+// Kira's view of board.hxx: the Arduino calls that stay C++. Firmware only: a py program cannot import it.
+
+pub @_extern(cpp = "esp32::board::log", header = "board.hxx") log: (text: Str) Void;
+pub @_extern(cpp = "esp32::board::millis", header = "board.hxx") millis: () Int32;
+pub @_extern(cpp = "esp32::board::sleep", header = "board.hxx") sleep: (ms: Int32) Void;
+pub @_extern(cpp = "esp32::board::led", header = "board.hxx") led: (lit: Bool) Void;
+pub @_extern(cpp = "esp32::board::button", header = "board.hxx") button: () Bool;
+pub @_extern(cpp = "esp32::board::temperatureC", header = "board.hxx") temperatureC: () Float32;
+pub @_extern(cpp = "esp32::board::freeHeap", header = "board.hxx") freeHeap: () Int32;
+pub @_extern(cpp = "esp32::board::readByte", header = "board.hxx") readByte: () Maybe<UInt8>;

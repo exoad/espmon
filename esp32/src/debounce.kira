@@ -1,0 +1,20 @@
+// A button read as a noisy bool: it counts as pressed or released once the reading has held for `need` steps.
+pub Debounce: Mutable<Any> {
+    need: Int32
+    down: Mutable<Bool> = false
+    streak: Mutable<Int32> = 0
+
+    // Whether the button is pressed, after this reading.
+    pub step: (raw: Bool) Bool {
+        if raw == down {
+            streak = 0
+        } else {
+            streak += 1
+            if streak >= need {
+                down = raw
+                streak = 0
+            }
+        }
+        down
+    }
+}
