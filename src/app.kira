@@ -1,0 +1,14 @@
+esp32.fw.board as board
+esp32.fw.board.log as log
+esp32.fw.board.millis as millis
+esp32.fw.board.sleep as sleep
+
+// The firmware's logic; main.cpp only forwards Arduino's setup and loop here.
+
+pub setup: () Void {
+}
+
+pub loop: () Void {
+    log("hello from the esp32, up ${millis()} ms")
+    sleep(1000)
+}

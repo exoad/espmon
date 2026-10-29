@@ -2,3 +2,7 @@
 .pio/
 __pycache__/
 *_kira.py
+*.kira.hxx
+*.kira.cxx
+kira.gen.manifest
+lib/
