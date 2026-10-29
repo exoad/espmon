@@ -1,0 +1,70 @@
+// The chip: what it is, its memory and temperature, how it last reset, and restarting or sleeping it.
+
+@_opaque @_extern(cpp = "EspClass", header = "Esp.h") Esp: Mutable<Any> {
+    pub @_mutates @_extern(cpp = "getChipModel") model: () Str;
+    pub @_mutates @_extern(cpp = "getChipRevision") revision: () UInt16;
+    pub @_mutates @_extern(cpp = "getChipCores") cores: () UInt8;
+    pub @_mutates @_extern(cpp = "getCpuFreqMHz") cpuMhz: () UInt32;
+    pub @_mutates @_extern(cpp = "getFlashChipSize") flashBytes: () UInt32;
+    pub @_mutates @_extern(cpp = "getFreeHeap") freeHeap: () UInt32;
+    pub @_mutates @_extern(cpp = "getMinFreeHeap") minFreeHeap: () UInt32;
+    pub @_mutates @_extern(cpp = "getHeapSize") heapBytes: () UInt32;
+    pub @_mutates @_extern(cpp = "getEfuseMac") efuseMac: () UInt64;
+    pub @_mutates @_extern(cpp = "restart") restart: () Void;
+}
+
+@_extern(cpp = "&ESP", header = "Esp.h") ESP: Esp;
+
+@_extern(cpp = "temperatureRead", header = "Arduino.h") rawTemperature: () Float32;
+@_extern(cpp = "esp_reset_reason", header = "esp_system.h") rawResetReason: () Int32;
+
+pub model: () Str {
+    ESP.model()
+}
+
+pub revision: () Int32 {
+    ESP.revision() as Int32
+}
+
+pub cores: () Int32 {
+    ESP.cores() as Int32
+}
+
+pub cpuMhz: () Int32 {
+    ESP.cpuMhz() as Int32
+}
+
+pub flashBytes: () Int64 {
+    ESP.flashBytes() as Int64
+}
+
+pub freeHeap: () Int64 {
+    ESP.freeHeap() as Int64
+}
+
+pub minFreeHeap: () Int64 {
+    ESP.minFreeHeap() as Int64
+}
+
+pub heapBytes: () Int64 {
+    ESP.heapBytes() as Int64
+}
+
+// The factory MAC from the eFuse, 48 bits.
+pub mac: () UInt64 {
+    ESP.efuseMac()
+}
+
+// The internal sensor, in degrees Celsius: the die's temperature, not the room's.
+pub temperatureC: () Float32 {
+    rawTemperature()
+}
+
+// Why the chip last reset, as ESP-IDF's esp_reset_reason_t (1 power on, 3 software, 4 panic, 5 and 6 and 7 watchdog, 8 deep sleep wake, 9 brownout).
+pub resetReason: () Int32 {
+    rawResetReason()
+}
+
+pub restart: () Void {
+    ESP.restart()
+}

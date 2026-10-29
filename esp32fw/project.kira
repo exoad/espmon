@@ -5,5 +5,5 @@ PROJECT: Project = Project { } with {
     srcDir = "src"
     target = "cpp"
     types = "strict"
-    dependencies = @mapOf("kira_stdlib", "../../RPLIDAR-C1/build/kira-toolchain/kira")
+    dependencies = @mapOf("kira_stdlib", "vendor/kira/kira")
 }

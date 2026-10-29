@@ -1,0 +1,30 @@
+// PWM on any output pin, through the LEDC peripheral.
+
+@_extern(cpp = "ledcAttach", header = "Arduino.h") rawAttach: (pin: UInt8, hz: UInt32, bits: UInt8) Bool;
+@_extern(cpp = "ledcDetach", header = "Arduino.h") rawDetach: (pin: UInt8) Bool;
+@_extern(cpp = "ledcWrite", header = "Arduino.h") rawWrite: (pin: UInt8, duty: UInt32) Bool;
+@_extern(cpp = "ledcRead", header = "Arduino.h") rawRead: (pin: UInt8) UInt32;
+@_extern(cpp = "ledcWriteTone", header = "Arduino.h") rawTone: (pin: UInt8, hz: UInt32) UInt32;
+
+// Puts a pin under PWM at hz with a duty of the given bit width; whether it took.
+pub attach: (pin: Int32, hz: Int64, bits: Int32) Bool {
+    rawAttach(pin as UInt8, hz as UInt32, bits as UInt8)
+}
+
+pub detach: (pin: Int32) Bool {
+    rawDetach(pin as UInt8)
+}
+
+// The duty, 0 to 2^bits: a 50 percent duty at 8 bits is 128.
+pub write: (pin: Int32, duty: Int64) Bool {
+    rawWrite(pin as UInt8, duty as UInt32)
+}
+
+pub read: (pin: Int32) Int64 {
+    rawRead(pin as UInt8) as Int64
+}
+
+// A square wave at hz for a speaker; the frequency that was set. Zero silences it.
+pub tone: (pin: Int32, hz: Int64) Int64 {
+    rawTone(pin as UInt8, hz as UInt32) as Int64
+}

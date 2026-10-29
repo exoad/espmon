@@ -6,3 +6,4 @@ __pycache__/
 *.kira.cxx
 kira.gen.manifest
 lib/
+*.kira.cpp

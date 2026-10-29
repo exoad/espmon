@@ -1,0 +1,27 @@
+// Digital pins, as Arduino's pinMode, digitalWrite and digitalRead. A pin is its GPIO number.
+
+pub @_extern(cpp = "INPUT", header = "Arduino.h") INPUT: Int32;
+pub @_extern(cpp = "OUTPUT", header = "Arduino.h") OUTPUT: Int32;
+pub @_extern(cpp = "INPUT_PULLUP", header = "Arduino.h") INPUT_PULLUP: Int32;
+pub @_extern(cpp = "INPUT_PULLDOWN", header = "Arduino.h") INPUT_PULLDOWN: Int32;
+
+@_extern(cpp = "pinMode", header = "Arduino.h") rawMode: (pin: UInt8, mode: UInt8) Void;
+@_extern(cpp = "digitalWrite", header = "Arduino.h") rawWrite: (pin: UInt8, level: UInt8) Void;
+@_extern(cpp = "digitalRead", header = "Arduino.h") rawRead: (pin: UInt8) Int32;
+
+// Sets a pin to INPUT, OUTPUT, INPUT_PULLUP or INPUT_PULLDOWN.
+pub mode: (pin: Int32, kind: Int32) Void {
+    rawMode(pin as UInt8, kind as UInt8)
+}
+
+pub write: (pin: Int32, high: Bool) Void {
+    rawWrite(pin as UInt8, high ? 1 : 0)
+}
+
+pub read: (pin: Int32) Bool {
+    rawRead(pin as UInt8) != 0
+}
+
+pub toggle: (pin: Int32) Void {
+    write(pin, !read(pin))
+}

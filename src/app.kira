@@ -1,31 +1,105 @@
 esp32.command.Command as Command
 esp32.debounce.Debounce as Debounce
-esp32.fw.board.button as button
-esp32.fw.board.freeHeap as freeHeap
-esp32.fw.board.led as led
-esp32.fw.board.log as log
-esp32.fw.board.millis as millis
-esp32.fw.board.readByte as readByte
-esp32.fw.board.sleep as sleep
-esp32.fw.board.temperatureC as temperatureC
+esp32.fw.adc as adc
+esp32.fw.chip as chip
+esp32.fw.clock as clock
+esp32.fw.gpio as gpio
+esp32.fw.i2c as i2c
+esp32.fw.i2c.I2c as I2c
+esp32.fw.pwm as pwm
+esp32.fw.uart as uart
+esp32.fw.uart.Uart as Uart
 esp32.lines.LineBuffer as LineBuffer
 
-// The smoke firmware: a serial shell and the BOOT button toggling the LED. main.cpp only forwards
-// Arduino's setup and loop here.
+// The smoke firmware: a serial shell, the BOOT button toggling the LED, and a selftest that
+// exercises each esp32.fw module on the chip and prints ok or FAIL lines.
 
 LINE_CAP: Size = 80
-POLL_MS: Int32 = 2
+POLL_MS: UInt32 = 2
 PRESS_STEPS: Int32 = 5
+LED: Int32 = 2
+BOOT: Int32 = 0
+LOOPBACK_PIN: Int32 = 4
+ADC_PIN: Int32 = 34
+SDA: Int32 = 21
+SCL: Int32 = 22
 
 Shell: Mutable<Any> {
+    pub console: Uart = uart.uart0()
     buf: LineBuffer = LineBuffer { LINE_CAP }
     pad: Debounce = Debounce { PRESS_STEPS }
     lit: Mutable<Bool> = false
     pressed: Mutable<Bool> = false
+    passed: Mutable<Int32> = 0
+    failed: Mutable<Int32> = 0
 
     show: (value: Bool) Void {
         lit = value
-        led(value)
+        gpio.write(LED, value)
+    }
+
+    check: (ok: Bool, name: Str, detail: Str) Void {
+        if ok {
+            passed += 1
+            console.println("ok ${name}")
+        } else {
+            failed += 1
+            console.println("FAIL ${name}: ${detail}")
+        }
+    }
+
+    selftest: () Void {
+        passed = 0
+        failed = 0
+        gpio.mode(LOOPBACK_PIN, gpio.OUTPUT)
+        gpio.write(LOOPBACK_PIN, true)
+        check(gpio.read(LOOPBACK_PIN), "gpio reads back a high output", "read low")
+        gpio.write(LOOPBACK_PIN, false)
+        check(!gpio.read(LOOPBACK_PIN), "gpio reads back a low output", "read high")
+        gpio.toggle(LOOPBACK_PIN)
+        check(gpio.read(LOOPBACK_PIN), "gpio toggles", "still low")
+
+        t0: UInt32 = clock.millis()
+        clock.delay(20)
+        waited: UInt32 = clock.millis() - t0
+        check(waited >= 19 && waited <= 40, "clock waits 20 ms", "waited ${waited} ms")
+        u0: UInt32 = clock.micros()
+        clock.delayMicros(500)
+        spent: UInt32 = clock.micros() - u0
+        check(spent >= 480 && spent <= 900, "clock waits 500 us", "waited ${spent} us")
+
+        check(chip.model() == "ESP32-D0WD-V3", "chip model", chip.model())
+        check(chip.cores() == 2, "chip has two cores", "${chip.cores()}")
+        check(chip.cpuMhz() == 240, "chip runs at 240 MHz", "${chip.cpuMhz()}")
+        check(chip.flashBytes() == 4194304, "chip has 4 MB of flash", "${chip.flashBytes()}")
+        check(chip.freeHeap() > 100000 && chip.freeHeap() <= chip.heapBytes(), "heap is sane", "${chip.freeHeap()} of ${chip.heapBytes()}")
+        check(chip.mac() != 0, "chip has a MAC", "zero")
+        temp: Float32 = chip.temperatureC()
+        check(temp > -20.0 && temp < 120.0, "chip temperature is plausible", "${temp}")
+        check(chip.resetReason() > 0, "chip says why it reset", "${chip.resetReason()}")
+
+        adc.resolution(12)
+        raw: Int32 = adc.read(ADC_PIN)
+        mv: Int32 = adc.millivolts(ADC_PIN)
+        check(raw >= 0 && raw <= 4095, "adc reads within 12 bits", "${raw}")
+        check(mv >= 0 && mv <= 3600, "adc millivolts are within the pin's range", "${mv}")
+
+        check(pwm.attach(LED, 5000, 8), "pwm attaches", "refused")
+        check(pwm.write(LED, 128), "pwm writes a duty", "refused")
+        check(pwm.read(LED) == 128, "pwm reads the duty back", "${pwm.read(LED)}")
+        check(pwm.detach(LED), "pwm detaches", "refused")
+        show(false)
+
+        bus: I2c = i2c.i2c0()
+        check(bus.begin(SDA, SCL, 100000), "i2c starts", "refused")
+        bus.timeoutMs(20)
+        found: List<Int32> = bus.scan()
+        check(found.size() <= 112, "i2c scan completes", "${found.size()}")
+        console.println("i2c devices: ${found.size()}")
+        check(!bus.probe(0x77) || found.contains(0x77), "i2c probe agrees with the scan", "disagree")
+        bus.end()
+
+        console.println("selftest ${passed}/${passed + failed}")
     }
 
     run: (line: Str) Void {
@@ -33,34 +107,36 @@ Shell: Mutable<Any> {
         verb: Str = c.verb()
         if verb == "led" {
             if c.arg(0).isNull() {
-                log("led ${lit ? "on" : "off"}")
+                console.println("led ${lit ? "on" : "off"}")
             } else {
                 show(c.arg(0).value == "on")
             }
         } else if verb == "temp" {
-            log("temp ${temperatureC()} C")
+            console.println("temp ${chip.temperatureC()} C")
         } else if verb == "heap" {
-            log("heap ${freeHeap()} bytes")
+            console.println("heap ${chip.freeHeap()} bytes")
         } else if verb == "uptime" {
-            log("uptime ${millis()} ms")
+            console.println("uptime ${clock.millis()} ms")
         } else if verb == "button" {
-            log("button ${pressed ? "down" : "up"}")
+            console.println("button ${pressed ? "down" : "up"}")
+        } else if verb == "selftest" {
+            selftest()
         } else if verb == "" {
         } else {
-            log("commands: led [on|off], temp, heap, uptime, button")
+            console.println("commands: led [on|off], temp, heap, uptime, button, selftest")
         }
     }
 
     pub tick: () Void {
-        b: Mutable<Maybe<UInt8>> = readByte()
+        b: Mutable<Maybe<UInt8>> = console.read()
         while !b.isNull() {
             line: Maybe<Str> = buf.push(b.value)
             if !line.isNull() {
                 run(line.value)
             }
-            b = readByte()
+            b = console.read()
         }
-        down: Bool = pad.step(button())
+        down: Bool = pad.step(!gpio.read(BOOT))
         if down && !pressed {
             show(!lit)
         }
@@ -68,13 +144,20 @@ Shell: Mutable<Any> {
     }
 }
 
-SHELL: Shell = Shell { }
+SHELL: Mutable<Maybe<Shell>> = null
 
 pub setup: () Void {
-    log("esp32 smoke firmware ready")
+    shell: Shell = Shell { }
+    shell.console.begin(115200)
+    gpio.mode(LED, gpio.OUTPUT)
+    gpio.mode(BOOT, gpio.INPUT_PULLUP)
+    shell.console.println("esp32 smoke firmware ready")
+    SHELL = shell
 }
 
 pub loop: () Void {
-    SHELL.tick()
-    sleep(POLL_MS)
+    if !SHELL.isNull() {
+        SHELL.value.tick()
+    }
+    clock.delay(POLL_MS)
 }

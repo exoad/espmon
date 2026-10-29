@@ -1,0 +1,93 @@
+// An I2C bus as controller: scan, write and read registers. The ESP32 has two, Wire and Wire1.
+
+@_opaque @_extern(cpp = "TwoWire", header = "Wire.h") RawWire: Mutable<Any> {
+    pub @_mutates @_extern(cpp = "begin") begin: (sda: Int32, scl: Int32, hz: UInt32) Bool;
+    pub @_mutates @_extern(cpp = "end") end: () Bool;
+    pub @_mutates @_extern(cpp = "setClock") setClock: (hz: UInt32) Bool;
+    pub @_mutates @_extern(cpp = "setTimeOut") setTimeout: (ms: UInt16) Void;
+    pub @_mutates @_extern(cpp = "beginTransmission") beginTransmission: (address: UInt8) Void;
+    pub @_mutates @_extern(cpp = "endTransmission") endTransmission: (stop: Bool) UInt8;
+    pub @_mutates @_extern(cpp = "write") write: (b: UInt8) Size;
+    pub @_mutates @_extern(cpp = "requestFrom") requestFrom: (address: UInt8, count: Size, stop: Bool) Size;
+    pub @_mutates @_extern(cpp = "read") read: () Int32;
+    pub @_mutates @_extern(cpp = "available") available: () Int32;
+}
+
+@_extern(cpp = "&Wire", header = "Wire.h") WIRE0: RawWire;
+@_extern(cpp = "&Wire1", header = "Wire.h") WIRE1: RawWire;
+
+// A transfer's outcome as Wire reports it: 0 is success, 1 too long, 2 no acknowledge of the address, 3 no acknowledge of the data, 4 other, 5 timeout.
+pub I2C_OK: Int32 = 0
+pub I2C_NACK_ADDRESS: Int32 = 2
+pub I2C_NACK_DATA: Int32 = 3
+pub I2C_TIMEOUT: Int32 = 5
+
+pub I2c: Mutable<Any> {
+    raw: RawWire
+
+    // Starts the bus as controller on the given pins at hz; whether it started.
+    pub begin: (sda: Int32, scl: Int32, hz: Int64) Bool {
+        raw.begin(sda, scl, hz as UInt32)
+    }
+
+    pub end: () Void {
+        raw.end()
+    }
+
+    // How long a transfer may take before it is a timeout, in milliseconds.
+    pub timeoutMs: (ms: Int32) Void {
+        raw.setTimeout(ms as UInt16)
+    }
+
+    // Whether a device answers at the 7-bit address.
+    pub probe: (address: Int32) Bool {
+        raw.beginTransmission(address as UInt8)
+        status: Int32 = raw.endTransmission(true) as Int32
+        status == I2C_OK
+    }
+
+    // Every address that answers, from 0x08 to 0x77.
+    pub scan: () List<Int32> {
+        found: Mutable<List<Int32>> = List<Int32> { }
+        for a: Int32 in 8..120 {
+            if probe(a) {
+                found.add(a)
+            }
+        }
+        found
+    }
+
+    // Writes the bytes to the device; Wire's outcome code, I2C_OK when it took them.
+    pub write: (address: Int32, data: List<UInt8>) Int32 {
+        raw.beginTransmission(address as UInt8)
+        for i: Size in 0..data.size() {
+            raw.write(data[i])
+        }
+        raw.endTransmission(true) as Int32
+    }
+
+    // Reads count bytes from a register: the register's number goes out with a repeated start, then the bytes come back. None when the device does not answer or sends fewer.
+    pub readRegister: (address: Int32, register: UInt8, count: Int32) Maybe<List<UInt8>> {
+        raw.beginTransmission(address as UInt8)
+        raw.write(register)
+        if (raw.endTransmission(false) as Int32) != I2C_OK {
+            null
+        } else if raw.requestFrom(address as UInt8, count as Size, true) != (count as Size) {
+            null
+        } else {
+            got: Mutable<List<UInt8>> = List<UInt8> { }
+            for i: Int32 in 0..count {
+                got.add(raw.read() as UInt8)
+            }
+            got
+        }
+    }
+}
+
+pub i2c0: () I2c {
+    I2c { WIRE0 }
+}
+
+pub i2c1: () I2c {
+    I2c { WIRE1 }
+}

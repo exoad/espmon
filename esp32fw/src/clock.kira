@@ -1,0 +1,6 @@
+// Time since boot, and waiting.
+
+pub @_extern(cpp = "millis", header = "Arduino.h") millis: () UInt32;
+pub @_extern(cpp = "micros", header = "Arduino.h") micros: () UInt32;
+pub @_extern(cpp = "delay", header = "Arduino.h") delay: (ms: UInt32) Void;
+pub @_extern(cpp = "delayMicroseconds", header = "Arduino.h") delayMicros: (us: UInt32) Void;
