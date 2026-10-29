@@ -29,14 +29,14 @@ LED: Int32 = 2
 // Counts the edges the interrupt test saw on the LED pin. Written in interrupt context, so it is read only between edges.
 EDGES: Mutable<Int32> = 0
 
-pub onLedEdge: () Void {
+pub @_iram onLedEdge: () Void {
     EDGES = EDGES + 1
 }
 
 // Counts the hardware timer's ticks.
 TICKS: Mutable<Int32> = 0
 
-pub onTick: () Void {
+pub @_iram onTick: () Void {
     TICKS = TICKS + 1
 }
 BOOT: Int32 = 0
