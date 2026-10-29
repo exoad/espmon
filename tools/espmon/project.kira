@@ -4,5 +4,5 @@ PROJECT: Project = Project { } with {
     srcDir = "."
     target = "py"
     types = "strict"
-    dependencies = @mapOf("kira_stdlib", "../../../RPLIDAR-C1/build/kira-toolchain/kira")
+    dependencies = @mapOf("kira_stdlib", "../../../RPLIDAR-C1/build/kira-toolchain/kira", "esp32", "../../esp32")
 }

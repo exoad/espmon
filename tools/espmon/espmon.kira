@@ -2,6 +2,7 @@ kira.args as args
 kira.io as io
 kira.os as os
 kira.time as time
+esp32.lines.LineBuffer as LineBuffer
 
 // espmon: reads the ESP32's serial port and prints each line with a UTC time.
 
@@ -9,13 +10,7 @@ DEFAULT_PORT: Str = "COM10"
 DEFAULT_BAUD: Int64 = 115200
 READ_MS: Int64 = 500
 CHUNK: Size = 256
-LF: UInt8 = 10
-CR: UInt8 = 13
-
-// One finished line, stamped.
-pub stamped: (line: View<UInt8>) Str {
-    "${utcStamp(wallNowNs())} ${Str.of(line)}"
-}
+LINE_CAP: Size = 512
 
 pub main: () Int32 {
     spec: ArgSpec = argSpec("espmon", "Print the ESP32's serial output with UTC times.")
@@ -38,7 +33,7 @@ pub main: () Int32 {
         for i: Size in 0..CHUNK {
             buf.add(0)
         }
-        line: Mutable<List<UInt8>> = @listOf()
+        lines: LineBuffer = LineBuffer { LINE_CAP }
         while !stop.load() {
             n: Int64 = port.read(buf.from(0), READ_MS)
             if n < 0 {
@@ -46,12 +41,9 @@ pub main: () Int32 {
                 stop.store(true)
             } else {
                 for i: Size in 0..(n as Size) {
-                    b: UInt8 = buf.get(i)
-                    if b == LF {
-                        println(stamped(line.view()))
-                        line.clear()
-                    } else if b != CR {
-                        line.add(b)
+                    line: Maybe<Str> = lines.push(buf.get(i))
+                    if !line.isNull() {
+                        println("${utcStamp(wallNowNs())} ${line.value}")
                     }
                 }
             }
