@@ -49,15 +49,8 @@ pub encode: (kind: Int32, ver: Int32, seq: Int32, payload: List<UInt8>) Maybe<Li
     if payload.size() > MAX_PAYLOAD || payload.size() % 4 != 0 {
         null
     } else {
-        out: Mutable<List<UInt8>> = List<UInt8> { }
-        out.add(MAGIC_LO as UInt8)
-        out.add(MAGIC_HI as UInt8)
-        out.add(kind as UInt8)
-        out.add(ver as UInt8)
-        out.add(0)
-        out.add(0)
-        out.add((seq & 0xFF) as UInt8)
-        out.add(((seq >> 8) & 0xFF) as UInt8)
+        out: Mutable<List<UInt8>> = @listOf(MAGIC_LO as UInt8, MAGIC_HI as UInt8, kind as UInt8, ver as UInt8, 0, 0,
+            (seq & 0xFF) as UInt8, ((seq >> 8) & 0xFF) as UInt8)
         n: Int64 = payload.size() as Int64
         for i: Int32 in 0..4 {
             out.add(((n >> (8 * i)) & 0xFF) as UInt8)

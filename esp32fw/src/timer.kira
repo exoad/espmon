@@ -1,0 +1,22 @@
+// Hardware timers: a Kira function runs at a fixed period, with no wiring. Like a GPIO interrupt, the handler
+// runs in interrupt context and must only bump a counter or set a flag.
+
+pub @_opaque @_extern(cpp = "timer_struct_t", header = "esp32-hal-timer.h") HwTimer: Mutable<Any> {
+}
+
+@_extern(cpp = "timerBegin", header = "esp32-hal-timer.h") rawBegin: (frequency: UInt32) HwTimer;
+@_callback @_extern(cpp = "timerAttachInterrupt", header = "esp32-hal-timer.h") rawAttach: (timer: HwTimer, handler: Fx<Tuple0, Void>) Void;
+@_extern(cpp = "timerAlarm", header = "esp32-hal-timer.h") rawAlarm: (timer: HwTimer, value: UInt64, autoreload: Bool, count: UInt64) Void;
+@_extern(cpp = "timerEnd", header = "esp32-hal-timer.h") rawEnd: (timer: HwTimer) Void;
+
+// Starts a timer that ticks at 1 MHz and calls handler every periodUs microseconds, until stop is called on it.
+pub start: (periodUs: UInt64, handler: Fx<Tuple0, Void>) HwTimer {
+    timer: HwTimer = rawBegin(1000000)
+    rawAttach(timer, handler)
+    rawAlarm(timer, periodUs, true, 0)
+    timer
+}
+
+pub stop: (timer: HwTimer) Void {
+    rawEnd(timer)
+}

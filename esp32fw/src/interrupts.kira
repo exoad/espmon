@@ -1,0 +1,18 @@
+// GPIO interrupts: a Kira function runs when a pin changes. The handler runs in interrupt context, so it must only
+// bump a counter or set a flag. It must not block, print or touch flash, and only one handler can sit on a pin.
+
+pub MODE_RISING: Int32 = 1
+pub MODE_FALLING: Int32 = 2
+pub MODE_CHANGE: Int32 = 3
+
+@_callback @_extern(cpp = "attachInterrupt", header = "Arduino.h") rawAttach: (pin: UInt8, handler: Fx<Tuple0, Void>, mode: Int32) Void;
+@_extern(cpp = "detachInterrupt", header = "Arduino.h") rawDetach: (pin: UInt8) Void;
+
+// Runs handler on each edge of pin, as mode says (MODE_RISING, MODE_FALLING or MODE_CHANGE).
+pub attach: (pin: Int32, handler: Fx<Tuple0, Void>, mode: Int32) Void {
+    rawAttach(pin as UInt8, handler, mode)
+}
+
+pub detach: (pin: Int32) Void {
+    rawDetach(pin as UInt8)
+}

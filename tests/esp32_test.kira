@@ -218,20 +218,12 @@ backToBackFramesAreBothEmitted: (t: Suite) Void {
 
 aBogusLengthDoesNotStallTheStream: (t: Suite) Void {
     r: Receiver = Receiver { }
+    // "BW", kind 1, version 1, flags 0, seq 0, then a length of 3, which is not a multiple of 4.
+    bogus: Mutable<List<UInt8>> = @listOf(0x42, 0x57, 1, 1, 0, 0, 0, 0, 3, 0, 0, 0)
     data: Mutable<List<UInt8>> = List<UInt8> { }
-    for b: UInt8 in "BW".bytes() {
+    for b: UInt8 in bogus {
         data.add(b)
     }
-    data.add(1)
-    data.add(1)
-    data.add(0)
-    data.add(0)
-    data.add(0)
-    data.add(0)
-    data.add(3)
-    data.add(0)
-    data.add(0)
-    data.add(0)
     for b: UInt8 in encode(1, 1, 12, "cccc".bytes()).value {
         data.add(b)
     }

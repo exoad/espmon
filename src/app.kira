@@ -10,6 +10,9 @@ esp32.fw.pwm as pwm
 esp32.fw.uart as uart
 esp32.fw.uart.Uart as Uart
 esp32.fw.wifi as wifi
+esp32.fw.interrupts as interrupts
+esp32.fw.timer as timer
+esp32.fw.timer.HwTimer as HwTimer
 esp32.frame.encode as encode
 esp32.frame.Frame as Frame
 esp32.link.Receiver as Receiver
@@ -22,6 +25,20 @@ LINE_CAP: Size = 80
 POLL_MS: UInt32 = 2
 PRESS_STEPS: Int32 = 5
 LED: Int32 = 2
+
+// Counts the edges the interrupt test saw on the LED pin. Written in interrupt context, so it is read only between edges.
+EDGES: Mutable<Int32> = 0
+
+pub onLedEdge: () Void {
+    EDGES = EDGES + 1
+}
+
+// Counts the hardware timer's ticks.
+TICKS: Mutable<Int32> = 0
+
+pub onTick: () Void {
+    TICKS = TICKS + 1
+}
 BOOT: Int32 = 0
 LOOPBACK_PIN: Int32 = 4
 ADC_PIN: Int32 = 34
@@ -55,6 +72,31 @@ Shell: Mutable<Any> {
             failed += 1
             console.println("FAIL ${name}: ${detail}")
         }
+    }
+
+    // Diagnostic for pin interrupts: toggles the LED pin ten times with a CHANGE interrupt on it and reports how many
+    // edges the handler counted. Not part of selftest: on this board a self-loop on an output pin counted none so far.
+    pinInterruptProbe: () Void {
+        EDGES = 0
+        interrupts.attach(LED, onLedEdge, interrupts.MODE_CHANGE)
+        for i: Int32 in 0..10 {
+            gpio.write(LED, i % 2 == 0)
+            clock.delayMicros(200)
+        }
+        clock.delay(5)
+        interrupts.detach(LED)
+        show(false)
+        console.println("irq pin edges counted ${EDGES} of 10")
+    }
+
+    // A hardware timer's interrupt is a callback too: it runs as the handler on every tick.
+    timerCheck: () Void {
+        // A hardware timer ticks every 1 ms; 50 ms of waiting should bring at least 40 ticks.
+        TICKS = 0
+        t: HwTimer = timer.start(1000, onTick)
+        clock.delay(50)
+        timer.stop(t)
+        check(TICKS >= 40 && TICKS <= 60, "a 1 ms hardware timer ticks about 50 times in 50 ms", "ticked ${TICKS}")
     }
 
     selftest: () Void {
@@ -98,6 +140,7 @@ Shell: Mutable<Any> {
         check(pwm.read(LED) == 128, "pwm reads the duty back", "${pwm.read(LED)}")
         check(pwm.detach(LED), "pwm detaches", "refused")
         show(false)
+        timerCheck()
 
         bus: I2c = i2c.i2c0()
         check(bus.begin(SDA, SCL, 100000), "i2c starts", "refused")
@@ -200,6 +243,8 @@ Shell: Mutable<Any> {
             } else {
                 console.println("link sent ${sent} received ${received}")
             }
+        } else if verb == "irq" {
+            pinInterruptProbe()
         } else if verb == "wifi" {
             wifiCommand(c)
         } else if verb == "selftest" {
