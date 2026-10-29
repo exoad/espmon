@@ -3,12 +3,12 @@
 // wrapping), payload length (4 bytes). Then the payload, a multiple of 4 bytes, then a CRC-32C over every
 // byte before it, little-endian.
 
-MAGIC_LO: Int32 = 0x42
-MAGIC_HI: Int32 = 0x57
-HEADER_BYTES: Size = 12
-TRAILER_BYTES: Size = 4
-MAX_PAYLOAD: Size = 1024
-CRC_POLY: UInt32 = 0x82F63B78
+pub MAGIC_LO: Int32 = 0x42
+pub MAGIC_HI: Int32 = 0x57
+pub HEADER_BYTES: Size = 12
+pub TRAILER_BYTES: Size = 4
+pub MAX_PAYLOAD: Size = 1024
+pub CRC_POLY: UInt32 = 0x82F63B78
 
 pub OK: Int32 = 0
 pub SHORT: Int32 = 1
@@ -36,7 +36,7 @@ pub crc32c: (data: List<UInt8>, count: Size) UInt32 {
 }
 
 // The unsigned little-endian value of width bytes at at.
-littleEndian: (data: List<UInt8>, at: Size, width: Size) Int64 {
+pub littleEndian: (data: List<UInt8>, at: Size, width: Size) Int64 {
     v: Mutable<Int64> = 0
     for i: Size in 0..width {
         v = v + ((data[at + i] as Int64) << (8 * i))

@@ -1,0 +1,56 @@
+esp32.frame.Frame as Frame
+esp32.frame.MAGIC_LO as MAGIC_LO
+esp32.frame.MAGIC_HI as MAGIC_HI
+esp32.frame.HEADER_BYTES as HEADER_BYTES
+esp32.frame.TRAILER_BYTES as TRAILER_BYTES
+esp32.frame.MAX_PAYLOAD as MAX_PAYLOAD
+esp32.frame.littleEndian as littleEndian
+esp32.frame.decode as decode
+
+// The link's receiver: bytes come in one at a time, and a whole frame comes out the moment its last byte does.
+// Bytes that are not a frame (noise, a frame cut off by a reset, a frame with a bad CRC) are skipped one at a
+// time until the magic and the length line up again, so the stream always recovers.
+
+pub Receiver: Mutable<Any> {
+    held: Mutable<List<UInt8>> = List<UInt8> { }
+
+    // The frame this byte completes, or none. At most one frame completes per byte.
+    pub push: (b: UInt8) Maybe<Frame> {
+        held.add(b)
+        out: Mutable<Maybe<Frame>> = null
+        done: Mutable<Bool> = false
+        while !done {
+            if held.size() == 0 {
+                done = true
+            } else if (held[0] as Int32) != MAGIC_LO {
+                held.removeAt(0)
+            } else if held.size() == 1 {
+                done = true
+            } else if (held[1] as Int32) != MAGIC_HI {
+                held.removeAt(0)
+            } else if held.size() < HEADER_BYTES {
+                done = true
+            } else {
+                len: Size = littleEndian(held, 8, 4) as Size
+                if len % 4 != 0 || len > MAX_PAYLOAD {
+                    held.removeAt(0)
+                } else if held.size() < HEADER_BYTES + len + TRAILER_BYTES {
+                    done = true
+                } else {
+                    whole: List<UInt8> = held.slice(0, HEADER_BYTES + len + TRAILER_BYTES).toList()
+                    decoded: Maybe<Frame> = decode(whole)
+                    if decoded.isNull() {
+                        held.removeAt(0)
+                    } else {
+                        for i: Size in 0..(HEADER_BYTES + len + TRAILER_BYTES) {
+                            held.removeAt(0)
+                        }
+                        out = decoded
+                        done = true
+                    }
+                }
+            }
+        }
+        out
+    }
+}

@@ -10,6 +10,9 @@ esp32.fw.pwm as pwm
 esp32.fw.uart as uart
 esp32.fw.uart.Uart as Uart
 esp32.fw.wifi as wifi
+esp32.frame.encode as encode
+esp32.frame.Frame as Frame
+esp32.link.Receiver as Receiver
 esp32.lines.LineBuffer as LineBuffer
 
 // The smoke firmware: a serial shell, the BOOT button toggling the LED, and a selftest that
@@ -27,6 +30,11 @@ SCL: Int32 = 22
 
 Shell: Mutable<Any> {
     pub console: Uart = uart.uart0()
+    pub linkPort: Uart = uart.uart1()
+    inbound: Receiver = Receiver { }
+    sent: Mutable<Int32> = 0
+    received: Mutable<Int32> = 0
+    linkSeq: Mutable<Int32> = 0
     buf: LineBuffer = LineBuffer { LINE_CAP }
     pad: Debounce = Debounce { PRESS_STEPS }
     lit: Mutable<Bool> = false
@@ -103,6 +111,49 @@ Shell: Mutable<Any> {
         console.println("selftest ${passed}/${passed + failed}")
     }
 
+    // Four bytes, little-endian.
+    u32Bytes: (v: Int64) List<UInt8> {
+        out: Mutable<List<UInt8>> = List<UInt8> { }
+        for i: Int32 in 0..4 {
+            out.add(((v >> (8 * i)) & 0xFF) as UInt8)
+        }
+        out
+    }
+
+    // Sends a status frame (kind 1): uptime and free heap, each a u32.
+    sendStatus: () Void {
+        body: Mutable<List<UInt8>> = List<UInt8> { }
+        for b: UInt8 in u32Bytes(clock.millis() as Int64) {
+            body.add(b)
+        }
+        for b: UInt8 in u32Bytes(chip.freeHeap()) {
+            body.add(b)
+        }
+        frame: Maybe<List<UInt8>> = encode(1, 1, linkSeq, body)
+        linkSeq = (linkSeq + 1) % 65536
+        for b: UInt8 in frame.value {
+            linkPort.write(b)
+        }
+        sent += 1
+        console.println("link sent status seq ${linkSeq - 1}")
+    }
+
+    // Reads every byte waiting on the link, and acts on each whole frame: kind 2 sets the LED from its first byte.
+    drainLink: () Void {
+        b: Mutable<Maybe<UInt8>> = linkPort.read()
+        while !b.isNull() {
+            got: Maybe<Frame> = inbound.push(b.value)
+            if !got.isNull() {
+                received += 1
+                console.println("link received kind ${got.value.kind} seq ${got.value.seq} bytes ${got.value.payload.size()}")
+                if got.value.kind == 2 && got.value.payload.size() > 0 {
+                    show(got.value.payload[0] == 1)
+                }
+            }
+            b = linkPort.read()
+        }
+    }
+
     wifiCommand: (c: Command) Void {
         sub: Str = c.arg(0).isNull() ? "" : c.arg(0).value
         if sub == "scan" {
@@ -142,6 +193,13 @@ Shell: Mutable<Any> {
             console.println("uptime ${clock.millis()} ms")
         } else if verb == "button" {
             console.println("button ${pressed ? "down" : "up"}")
+        } else if verb == "link" {
+            sub: Str = c.arg(0).isNull() ? "" : c.arg(0).value
+            if sub == "send" {
+                sendStatus()
+            } else {
+                console.println("link sent ${sent} received ${received}")
+            }
         } else if verb == "wifi" {
             wifiCommand(c)
         } else if verb == "selftest" {
@@ -153,6 +211,7 @@ Shell: Mutable<Any> {
     }
 
     pub tick: () Void {
+        drainLink()
         b: Mutable<Maybe<UInt8>> = console.read()
         while !b.isNull() {
             line: Maybe<Str> = buf.push(b.value)
@@ -174,6 +233,7 @@ SHELL: Mutable<Maybe<Shell>> = null
 pub setup: () Void {
     shell: Shell = Shell { }
     shell.console.begin(115200)
+    shell.linkPort.beginOn(115200, 16, 17)
     gpio.mode(LED, gpio.OUTPUT)
     gpio.mode(BOOT, gpio.INPUT_PULLUP)
     shell.console.println("esp32 smoke firmware ready")
