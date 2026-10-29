@@ -4,6 +4,17 @@ esp32.command as command
 esp32.command.Command as Command
 esp32.debounce.Debounce as Debounce
 esp32.lines.LineBuffer as LineBuffer
+esp32.frame.Frame as Frame
+esp32.frame.Newest as Newest
+esp32.frame.encode as encode
+esp32.frame.decode as decode
+esp32.frame.check as check
+esp32.frame.crc32c as crc32c
+esp32.frame.OK as OK
+esp32.frame.SHORT as SHORT
+esp32.frame.BAD_MAGIC as BAD_MAGIC
+esp32.frame.BAD_LENGTH as BAD_LENGTH
+esp32.frame.BAD_CRC as BAD_CRC
 
 // esp32_test: the library's line buffer, debounce and command parser.
 
@@ -66,6 +77,82 @@ commandsAreSplit: (t: Suite) Void {
     t.check(e.count() == 0, "and no arguments")
 }
 
+crcMatchesTheStandardCheckValue: (t: Suite) Void {
+    // CRC-32C of "123456789" is 0xE3069283, the value every CRC-32C implementation is checked against.
+    t.check(crc32c("123456789".bytes(), 9) as Int64 == 3808858755, "CRC-32C of 123456789")
+    t.check(crc32c(List<UInt8> { }, 0) as Int64 == 0, "CRC-32C of nothing is 0")
+}
+
+aFrameRoundTrips: (t: Suite) Void {
+    payload: List<UInt8> = "abcdefgh".bytes()
+    bytes: Maybe<List<UInt8>> = encode(3, 1, 7, payload)
+    t.check(!bytes.isNull(), "an 8-byte payload encodes")
+    t.check(bytes.value.size() == 24, "12 header, 8 payload, 4 CRC")
+    t.check(check(bytes.value) == OK, "its own bytes check")
+    got: Maybe<Frame> = decode(bytes.value)
+    t.check(!got.isNull(), "and decodes")
+    t.check(got.value.kind == 3 && got.value.ver == 1 && got.value.seq == 7, "kind, version and seq come back")
+    t.checkStr(Str.of(got.value.payload.view()), "abcdefgh", "the payload comes back")
+}
+
+aSeqWrapsInTwoBytes: (t: Suite) Void {
+    bytes: Maybe<List<UInt8>> = encode(1, 1, 65537, List<UInt8> { })
+    got: Maybe<Frame> = decode(bytes.value)
+    t.check(got.value.seq == 1, "a seq past 65535 wraps")
+}
+
+aBadPayloadIsRefused: (t: Suite) Void {
+    t.check(encode(1, 1, 0, "abcdef".bytes()).isNull(), "a payload not a multiple of 4 is refused")
+    big: Mutable<List<UInt8>> = List<UInt8> { }
+    for i: Size in 0..1028 {
+        big.add(0)
+    }
+    t.check(encode(1, 1, 0, big).isNull(), "a payload past MAX_PAYLOAD is refused")
+}
+
+aFlippedByteFailsTheCrc: (t: Suite) Void {
+    good: List<UInt8> = encode(2, 1, 1, "abcdefgh".bytes()).value
+    bad: Mutable<List<UInt8>> = List<UInt8> { }
+    for i: Size in 0..good.size() {
+        bad.add(good[i])
+    }
+    bad.set(14, bad[14] + 1)
+    t.check(check(bad) == BAD_CRC, "one flipped payload byte is a CRC failure")
+    t.check(decode(bad).isNull(), "and it does not decode")
+}
+
+aMalformedFramesAreNamed: (t: Suite) Void {
+    good: List<UInt8> = encode(2, 1, 1, "abcdefgh".bytes()).value
+    t.check(check(good.slice(0, 10).toList()) == SHORT, "a header cut short is SHORT")
+    t.check(check(good.slice(0, 20).toList()) == SHORT, "a frame cut short is SHORT")
+    noMagic: Mutable<List<UInt8>> = List<UInt8> { }
+    for i: Size in 0..good.size() {
+        noMagic.add(good[i])
+    }
+    noMagic.set(0, 0)
+    t.check(check(noMagic) == BAD_MAGIC, "a wrong magic is BAD_MAGIC")
+    longer: Mutable<List<UInt8>> = List<UInt8> { }
+    for i: Size in 0..good.size() {
+        longer.add(good[i])
+    }
+    longer.add(0)
+    t.check(check(longer) == BAD_LENGTH, "bytes past the frame are BAD_LENGTH")
+}
+
+newestWinsAndLateFramesAreDropped: (t: Suite) Void {
+    n: Newest = Newest { }
+    t.check(n.accept(5), "the first frame is newest")
+    t.check(!n.accept(3), "an older frame is dropped")
+    t.check(!n.accept(5), "a repeat is dropped")
+    t.check(n.accept(6), "the next one is newer")
+    t.check(!n.accept(0), "0 is 65530 behind 6, so it is stale, not a wrap")
+    w: Newest = Newest { }
+    t.check(w.accept(65534), "a counter starts near the top")
+    t.check(w.accept(65535), "and climbs")
+    t.check(w.accept(0), "0 after 65535 is a wrap, so newer")
+    t.check(!w.accept(65535), "65535 is now behind 0")
+}
+
 pub main: () Int32 {
     t: Suite = Suite { title = "esp32_test - the esp32 library (lines, debounce, command)" }
     linesAreCutAtTheNewline(t)
@@ -73,5 +160,12 @@ pub main: () Int32 {
     aPressNeedsItsStreak(t)
     noiseNeverPresses(t)
     commandsAreSplit(t)
+    crcMatchesTheStandardCheckValue(t)
+    aFrameRoundTrips(t)
+    aSeqWrapsInTwoBytes(t)
+    aBadPayloadIsRefused(t)
+    aFlippedByteFailsTheCrc(t)
+    aMalformedFramesAreNamed(t)
+    newestWinsAndLateFramesAreDropped(t)
     t.finish()
 }

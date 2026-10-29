@@ -9,6 +9,7 @@ esp32.fw.i2c.I2c as I2c
 esp32.fw.pwm as pwm
 esp32.fw.uart as uart
 esp32.fw.uart.Uart as Uart
+esp32.fw.wifi as wifi
 esp32.lines.LineBuffer as LineBuffer
 
 // The smoke firmware: a serial shell, the BOOT button toggling the LED, and a selftest that
@@ -102,6 +103,28 @@ Shell: Mutable<Any> {
         console.println("selftest ${passed}/${passed + failed}")
     }
 
+    wifiCommand: (c: Command) Void {
+        sub: Str = c.arg(0).isNull() ? "" : c.arg(0).value
+        if sub == "scan" {
+            found: Int32 = wifi.scan()
+            console.println("wifi networks ${found}")
+            for i: Int32 in 0..found {
+                console.println("  ${wifi.networkRssiAt(i)} dBm ${wifi.networkAt(i)}")
+            }
+        } else if sub == "join" && !c.arg(1).isNull() {
+            pass: Str = c.arg(2).isNull() ? "" : c.arg(2).value
+            wifi.join(c.arg(1).value, pass)
+            console.println("wifi joining ${c.arg(1).value}")
+        } else if sub == "status" {
+            console.println("wifi status ${wifi.status()} connected ${wifi.isConnected()} network ${wifi.linkNetwork()} address ${wifi.address()} rssi ${wifi.rssi()}")
+        } else if sub == "leave" {
+            wifi.leave()
+            console.println("wifi left")
+        } else {
+            console.println("wifi: scan, join SSID [PASSWORD], status, leave")
+        }
+    }
+
     run: (line: Str) Void {
         c: Command = Command { line }
         verb: Str = c.verb()
@@ -119,6 +142,8 @@ Shell: Mutable<Any> {
             console.println("uptime ${clock.millis()} ms")
         } else if verb == "button" {
             console.println("button ${pressed ? "down" : "up"}")
+        } else if verb == "wifi" {
+            wifiCommand(c)
         } else if verb == "selftest" {
             selftest()
         } else if verb == "" {

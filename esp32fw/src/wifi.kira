@@ -1,0 +1,85 @@
+// Wi-Fi in station mode: scan for networks, join one, and read the link. A password comes from the console at
+// run time and is never written to the repository.
+
+@_extern(cpp = "String", header = "WString.h") ArduinoString: Struct {
+    pub @_extern(cpp = "c_str") cstr: () Str;
+}
+
+@_extern(cpp = "IPAddress", header = "IPAddress.h") IpAddress: Struct {
+    pub @_extern(cpp = "toString") text: () ArduinoString;
+}
+
+@_opaque @_extern(cpp = "WiFiClass", header = "WiFi.h") RawWifi: Mutable<Any> {
+    pub @_mutates @_extern(cpp = "begin") join: (ssid: Str, password: Str) Int32;
+    pub @_mutates @_extern(cpp = "disconnect") leave: () Bool;
+    pub @_mutates @_extern(cpp = "status") status: () Int32;
+    pub @_mutates @_extern(cpp = "isConnected") isConnected: () Bool;
+    pub @_mutates @_extern(cpp = "RSSI") rssi: () Int8;
+    pub @_mutates @_extern(cpp = "localIP") localIp: () IpAddress;
+    pub @_mutates @_extern(cpp = "SSID") linkName: () ArduinoString;
+    pub @_mutates @_extern(cpp = "scanNetworks") scanNetworks: () Int16;
+    pub @_mutates @_extern(cpp = "SSID") networkName: (item: UInt8) ArduinoString;
+    pub @_mutates @_extern(cpp = "RSSI") networkRssi: (item: UInt8) Int32;
+}
+
+@_extern(cpp = "&WiFi", header = "WiFi.h") RADIO: RawWifi;
+
+// The status codes join and status return, as Arduino's wl_status_t.
+pub WL_IDLE: Int32 = 0
+pub WL_NO_SSID: Int32 = 1
+pub WL_CONNECTED: Int32 = 3
+pub WL_CONNECT_FAILED: Int32 = 4
+pub WL_CONNECTION_LOST: Int32 = 5
+pub WL_DISCONNECTED: Int32 = 6
+
+pub text: (value: ArduinoString) Str {
+    value.cstr()
+}
+
+// Starts the join and returns at once; poll status() for WL_CONNECTED.
+pub join: (ssid: Str, password: Str) Int32 {
+    RADIO.join(ssid, password)
+}
+
+// Drops the link and keeps Wi-Fi on.
+pub leave: () Bool {
+    RADIO.leave()
+}
+
+pub status: () Int32 {
+    RADIO.status()
+}
+
+pub isConnected: () Bool {
+    RADIO.isConnected()
+}
+
+// The signal strength of the joined network in dBm; closer to 0 is stronger.
+pub rssi: () Int32 {
+    RADIO.rssi() as Int32
+}
+
+// The address the network gave this board, as text.
+pub address: () Str {
+    text(RADIO.localIp().text())
+}
+
+// The name of the network joined, or "" when none.
+pub linkNetwork: () Str {
+    text(RADIO.linkName())
+}
+
+// How many networks answered the scan, blocking until it ends.
+pub scan: () Int32 {
+    RADIO.scanNetworks() as Int32
+}
+
+// The name of the nth network found by scan(), counted from 0.
+pub networkAt: (item: Int32) Str {
+    text(RADIO.networkName(item as UInt8))
+}
+
+// The signal strength of the nth network found by scan(), in dBm.
+pub networkRssiAt: (item: Int32) Int32 {
+    RADIO.networkRssi(item as UInt8)
+}

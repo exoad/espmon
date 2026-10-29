@@ -1,0 +1,120 @@
+// The link frame: one shape for every message between a board and a host, so one decoder serves both ends.
+// Header, 12 bytes, little-endian: magic 0x5742 ("BW"), kind, version, flags (2 bytes, 0), seq (2 bytes,
+// wrapping), payload length (4 bytes). Then the payload, a multiple of 4 bytes, then a CRC-32C over every
+// byte before it, little-endian.
+
+MAGIC_LO: Int32 = 0x42
+MAGIC_HI: Int32 = 0x57
+HEADER_BYTES: Size = 12
+TRAILER_BYTES: Size = 4
+MAX_PAYLOAD: Size = 1024
+CRC_POLY: UInt32 = 0x82F63B78
+
+pub OK: Int32 = 0
+pub SHORT: Int32 = 1
+pub BAD_MAGIC: Int32 = 2
+pub BAD_LENGTH: Int32 = 3
+pub BAD_CRC: Int32 = 4
+
+pub Frame: Mutable<Any> {
+    pub kind: Int32
+    pub ver: Int32
+    pub seq: Int32
+    pub payload: List<UInt8>
+}
+
+// CRC-32C (Castagnoli) over the first count bytes, bit by bit: frames are at most a kilobyte, so no table.
+pub crc32c: (data: List<UInt8>, count: Size) UInt32 {
+    crc: Mutable<UInt32> = 0xFFFFFFFF
+    for i: Size in 0..count {
+        crc = crc ^ (data[i] as UInt32)
+        for k: Int32 in 0..8 {
+            crc = (crc & 1) == 1 ? (crc >> 1) ^ CRC_POLY : crc >> 1
+        }
+    }
+    crc ^ 0xFFFFFFFF
+}
+
+// The unsigned little-endian value of width bytes at at.
+littleEndian: (data: List<UInt8>, at: Size, width: Size) Int64 {
+    v: Mutable<Int64> = 0
+    for i: Size in 0..width {
+        v = v + ((data[at + i] as Int64) << (8 * i))
+    }
+    v
+}
+
+// The frame as bytes, or none when the payload is longer than MAX_PAYLOAD or not a multiple of 4.
+pub encode: (kind: Int32, ver: Int32, seq: Int32, payload: List<UInt8>) Maybe<List<UInt8>> {
+    if payload.size() > MAX_PAYLOAD || payload.size() % 4 != 0 {
+        null
+    } else {
+        out: Mutable<List<UInt8>> = List<UInt8> { }
+        out.add(MAGIC_LO as UInt8)
+        out.add(MAGIC_HI as UInt8)
+        out.add(kind as UInt8)
+        out.add(ver as UInt8)
+        out.add(0)
+        out.add(0)
+        out.add((seq & 0xFF) as UInt8)
+        out.add(((seq >> 8) & 0xFF) as UInt8)
+        n: Int64 = payload.size() as Int64
+        for i: Int32 in 0..4 {
+            out.add(((n >> (8 * i)) & 0xFF) as UInt8)
+        }
+        for i: Size in 0..payload.size() {
+            out.add(payload[i])
+        }
+        crc: UInt32 = crc32c(out, out.size())
+        for i: Int32 in 0..4 {
+            out.add(((crc >> (8 * i)) & 0xFF) as UInt8)
+        }
+        out
+    }
+}
+
+// Why bytes are not one whole frame: OK when they are, else SHORT, BAD_MAGIC, BAD_LENGTH or BAD_CRC.
+pub check: (bytes: List<UInt8>) Int32 {
+    n: Size = bytes.size()
+    if n < HEADER_BYTES + TRAILER_BYTES {
+        SHORT
+    } else if (bytes[0] as Int32) != MAGIC_LO || (bytes[1] as Int32) != MAGIC_HI {
+        BAD_MAGIC
+    } else {
+        len: Size = littleEndian(bytes, 8, 4) as Size
+        len % 4 != 0 || len > MAX_PAYLOAD ? BAD_LENGTH
+            : n < HEADER_BYTES + len + TRAILER_BYTES ? SHORT
+            : n != HEADER_BYTES + len + TRAILER_BYTES ? BAD_LENGTH
+            : (crc32c(bytes, n - TRAILER_BYTES) as Int64) != littleEndian(bytes, n - TRAILER_BYTES, 4) ? BAD_CRC
+            : OK
+    }
+}
+
+// The frame bytes hold, or none: see check.
+pub decode: (bytes: List<UInt8>) Maybe<Frame> {
+    if check(bytes) != OK {
+        null
+    } else {
+        payload: Mutable<List<UInt8>> = List<UInt8> { }
+        len: Size = littleEndian(bytes, 8, 4) as Size
+        for i: Size in 0..len {
+            payload.add(bytes[HEADER_BYTES + i])
+        }
+        Frame { bytes[2] as Int32, bytes[3] as Int32, littleEndian(bytes, 6, 2) as Int32, payload }
+    }
+}
+
+// Keeps the newest frame: a sequence number 1 to 32767 ahead of the last one is newer, so a late frame is
+// dropped and the counter may wrap.
+pub Newest: Mutable<Any> {
+    last: Mutable<Int32> = -1
+
+    pub accept: (seq: Int32) Bool {
+        if last < 0 || ((seq - last + 65536) % 65536 > 0 && (seq - last + 65536) % 65536 < 32768) {
+            last = seq
+            true
+        } else {
+            false
+        }
+    }
+}
