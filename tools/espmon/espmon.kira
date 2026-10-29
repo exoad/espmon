@@ -1,0 +1,62 @@
+kira.args as args
+kira.io as io
+kira.os as os
+kira.time as time
+
+// espmon: reads the ESP32's serial port and prints each line with a UTC time.
+
+DEFAULT_PORT: Str = "COM10"
+DEFAULT_BAUD: Int64 = 115200
+READ_MS: Int64 = 500
+CHUNK: Size = 256
+LF: UInt8 = 10
+CR: UInt8 = 13
+
+// One finished line, stamped.
+pub stamped: (line: View<UInt8>) Str {
+    "${utcStamp(wallNowNs())} ${Str.of(line)}"
+}
+
+pub main: () Int32 {
+    spec: ArgSpec = argSpec("espmon", "Print the ESP32's serial output with UTC times.")
+    spec.text("--port", DEFAULT_PORT, "the serial port")
+    spec.whole("--baud", DEFAULT_BAUD, "the baud rate")
+    argv: Mutable<List<Str>> = List<Str> { }
+    all: List<Str> = args()
+    for i: Size in 1..all.size() {
+        argv.add(all[i])
+    }
+    parsed: Parsed = spec.parse(argv)
+    port: Serial = Serial {}
+    if !port.open(parsed.textOf("--port").value, parsed.wholeOf("--baud").value as Int32) {
+        eprint("espmon: ${lastError()}\n")
+        1
+    } else {
+        stop: Atomic<Bool> = Atomic<Bool> { value = false }
+        onSignal(SIGNAL_INT, stop)
+        buf: Mutable<List<UInt8>> = @listOf()
+        for i: Size in 0..CHUNK {
+            buf.add(0)
+        }
+        line: Mutable<List<UInt8>> = @listOf()
+        while !stop.load() {
+            n: Int64 = port.read(buf.from(0), READ_MS)
+            if n < 0 {
+                eprint("espmon: ${lastError()}\n")
+                stop.store(true)
+            } else {
+                for i: Size in 0..(n as Size) {
+                    b: UInt8 = buf.get(i)
+                    if b == LF {
+                        println(stamped(line.view()))
+                        line.clear()
+                    } else if b != CR {
+                        line.add(b)
+                    }
+                }
+            }
+        }
+        port.close()
+        0
+    }
+}
