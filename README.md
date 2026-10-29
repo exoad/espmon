@@ -1,7 +1,7 @@
 <div align="center">
   <h1>espmon</h1>
   <p><em>An ESP32 library.</em></p>
-  <p>Built for my own use. Anyone may use it and change it however they like, but I won't review pull requests or issues.</p>
+  <p><sub>Personal use. PRs are not reviewed.</sub></p>
 </div>
 
 <div align="center">
