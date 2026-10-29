@@ -1,7 +1,7 @@
 <div align="center">
   <h1>espmon</h1>
   <p><em>An ESP32 library.</em></p>
-  <p><sub>Do whatever the fuck you want with it. I won't review PRs, and I'll dismiss them.</sub></p>
+  <p><sub>Do what the fuck you want. Contributions in this repo will be dismissed.</sub></p>
 </div>
 
 <div align="center">
