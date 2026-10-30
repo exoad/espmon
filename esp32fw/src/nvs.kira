@@ -1,0 +1,45 @@
+// Settings kept in the flash, so they survive a reset. Arduino's EEPROM is a 64-byte store that the ESP32 keeps in
+// NVS: a slot is a valid marker and four little-endian bytes. A slot never written reads its fallback.
+
+@_opaque @_extern(cpp = "EEPROMClass", header = "EEPROM.h") RawEeprom: Mutable<Any> {
+    pub @_mutates @_extern(cpp = "begin") begin: (size: Size) Bool;
+    pub @_mutates @_extern(cpp = "read") read: (address: Int32) UInt8;
+    pub @_mutates @_extern(cpp = "write") write: (address: Int32, value: UInt8) Void;
+    pub @_mutates @_extern(cpp = "commit") commit: () Bool;
+}
+
+@_extern(cpp = "&EEPROM", header = "EEPROM.h") EEPROM_: RawEeprom;
+
+// Bytes per slot: the marker, then the value.
+SLOT_BYTES: Int32 = 5
+VALID: Int32 = 165
+SLOTS: Int32 = 12
+
+// Opens the store; false when the flash could not be read.
+pub open: () Bool {
+    EEPROM_.begin((SLOTS * SLOT_BYTES) as Size)
+}
+
+// Writes value (32 bits) to slot and commits it to flash; false when the commit failed.
+pub put: (slot: Int32, value: Int64) Bool {
+    base: Int32 = slot * SLOT_BYTES
+    EEPROM_.write(base, VALID as UInt8)
+    for i: Int32 in 0..4 {
+        EEPROM_.write(base + 1 + i, ((value >> (8 * i)) & 0xFF) as UInt8)
+    }
+    EEPROM_.commit()
+}
+
+// The value in slot, or fallback when the slot was never written.
+pub get: (slot: Int32, fallback: Int64) Int64 {
+    base: Int32 = slot * SLOT_BYTES
+    if (EEPROM_.read(base) as Int32) != VALID {
+        fallback
+    } else {
+        v: Mutable<Int64> = 0
+        for i: Int32 in 0..4 {
+            v = v | ((EEPROM_.read(base + 1 + i) as Int64) << (8 * i))
+        }
+        v
+    }
+}

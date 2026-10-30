@@ -12,6 +12,7 @@ esp32.fw.uart.Uart as Uart
 esp32.fw.wifi as wifi
 esp32.fw.interrupts as interrupts
 esp32.fw.timer as timer
+esp32.fw.nvs as nvs
 esp32.fw.timer.HwTimer as HwTimer
 esp32.frame.encode as encode
 esp32.frame.Frame as Frame
@@ -197,6 +198,21 @@ Shell: Mutable<Any> {
         }
     }
 
+    // nvs get | nvs set N: slot 0 of the flash store, which survives a restart.
+    nvsCommand: (c: Command) Void {
+        if !nvs.open() {
+            console.println("nvs: could not open the store")
+        } else {
+            sub: Str = c.arg(0).isNull() ? "get" : c.arg(0).value
+            if sub == "set" && !c.arg(1).isNull() {
+                saved: Bool = nvs.put(0, c.arg(1).value.toInt64().value)
+                console.println("nvs set ${c.arg(1).value} saved ${saved}")
+            } else {
+                console.println("nvs value ${nvs.get(0, -1)}")
+            }
+        }
+    }
+
     wifiCommand: (c: Command) Void {
         sub: Str = c.arg(0).isNull() ? "" : c.arg(0).value
         if sub == "scan" {
@@ -243,6 +259,11 @@ Shell: Mutable<Any> {
             } else {
                 console.println("link sent ${sent} received ${received}")
             }
+        } else if verb == "nvs" {
+            nvsCommand(c)
+        } else if verb == "restart" {
+            console.println("restarting")
+            chip.restart()
         } else if verb == "irq" {
             pinInterruptProbe()
         } else if verb == "wifi" {
