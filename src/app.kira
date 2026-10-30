@@ -48,12 +48,12 @@ SCL: Int32 = 22
 Shell: Mutable<Any> {
     pub console: Uart = uart.uart0()
     pub linkPort: Uart = uart.uart1()
-    inbound: Receiver = Receiver { }
+    inbound: Receiver { }
     sent: Mutable<Int32> = 0
     received: Mutable<Int32> = 0
     linkSeq: Mutable<Int32> = 0
-    buf: LineBuffer = LineBuffer { LINE_CAP }
-    pad: Debounce = Debounce { PRESS_STEPS }
+    buf: LineBuffer { LINE_CAP }
+    pad: Debounce { PRESS_STEPS }
     lit: Mutable<Bool> = false
     pressed: Mutable<Bool> = false
     passed: Mutable<Int32> = 0
@@ -156,7 +156,7 @@ Shell: Mutable<Any> {
 
     // Four bytes, little-endian.
     u32Bytes: (v: Int64) List<UInt8> {
-        out: Mutable<List<UInt8>> = List<UInt8> { }
+        out: Mutable<List<UInt8>> { }
         for i: Int32 in 0..4 {
             out.add(((v >> (8 * i)) & 0xFF) as UInt8)
         }
@@ -165,7 +165,7 @@ Shell: Mutable<Any> {
 
     // Sends a status frame (kind 1): uptime and free heap, each a u32.
     sendStatus: () Void {
-        body: Mutable<List<UInt8>> = List<UInt8> { }
+        body: Mutable<List<UInt8>> { }
         for b: UInt8 in u32Bytes(clock.millis() as Int64) {
             body.add(b)
         }
@@ -220,7 +220,7 @@ Shell: Mutable<Any> {
     }
 
     run: (line: Str) Void {
-        c: Command = Command { line }
+        c: Command { line }
         verb: Str = c.verb()
         if verb == "led" {
             if c.arg(0).isNull() {
@@ -276,7 +276,7 @@ Shell: Mutable<Any> {
 SHELL: Mutable<Maybe<Shell>> = null
 
 pub setup: () Void {
-    shell: Shell = Shell { }
+    shell: Shell { }
     shell.console.begin(115200)
     shell.linkPort.beginOn(115200, 16, 17)
     gpio.mode(LED, gpio.OUTPUT)

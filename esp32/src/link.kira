@@ -12,7 +12,7 @@ esp32.frame.decode as decode
 // time until the magic and the length line up again, so the stream always recovers.
 
 pub Receiver: Mutable<Any> {
-    held: Mutable<List<UInt8>> = List<UInt8> { }
+    held: Mutable<List<UInt8>> { }
 
     // The frame this byte completes, or none. At most one frame completes per byte.
     pub push: (b: UInt8) Maybe<Frame> {

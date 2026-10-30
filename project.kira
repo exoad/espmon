@@ -1,5 +1,5 @@
 // The smoke firmware: the esp32 library's modules on a real board, built by PlatformIO.
-PROJECT: Project = Project { } with {
+PROJECT: Project { } with {
     name = "smoke"
     srcDir = "src"
     target = "cpp"

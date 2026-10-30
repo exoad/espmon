@@ -1,5 +1,5 @@
 // The esp32 library: the Kira modules a host tool and the firmware share, imported as esp32.<module>.
-PROJECT: Project = Project { } with {
+PROJECT: Project { } with {
     name = "esp32"
     srcDir = "src"
     target = "py"

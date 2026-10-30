@@ -88,7 +88,7 @@ pub decode: (bytes: List<UInt8>) Maybe<Frame> {
     if check(bytes) != OK {
         null
     } else {
-        payload: Mutable<List<UInt8>> = List<UInt8> { }
+        payload: Mutable<List<UInt8>> { }
         len: Size = littleEndian(bytes, 8, 4) as Size
         for i: Size in 0..len {
             payload.add(bytes[HEADER_BYTES + i])

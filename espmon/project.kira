@@ -1,5 +1,5 @@
 // The ESP32 serial monitor's Kira, compiled to Python: espmon.kira becomes the espmon_kira.py beside it.
-PROJECT: Project = Project { } with {
+PROJECT: Project { } with {
     name = "esp32.espmon"
     srcDir = "."
     target = "py"

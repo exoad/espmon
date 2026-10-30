@@ -48,7 +48,7 @@ pub I2c: Mutable<Any> {
 
     // Every address that answers, from 0x08 to 0x77.
     pub scan: () List<Int32> {
-        found: Mutable<List<Int32>> = List<Int32> { }
+        found: Mutable<List<Int32>> { }
         for a: Int32 in 8..120 {
             if probe(a) {
                 found.add(a)
@@ -75,7 +75,7 @@ pub I2c: Mutable<Any> {
         } else if raw.requestFrom(address as UInt8, count as Size, true) != (count as Size) {
             null
         } else {
-            got: Mutable<List<UInt8>> = List<UInt8> { }
+            got: Mutable<List<UInt8>> { }
             for i: Int32 in 0..count {
                 got.add(raw.read() as UInt8)
             }

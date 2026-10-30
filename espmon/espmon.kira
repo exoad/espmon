@@ -16,24 +16,24 @@ pub main: () Int32 {
     spec: ArgSpec = argSpec("espmon", "Print the ESP32's serial output with UTC times.")
     spec.text("--port", DEFAULT_PORT, "the serial port")
     spec.whole("--baud", DEFAULT_BAUD, "the baud rate")
-    argv: Mutable<List<Str>> = List<Str> { }
+    argv: Mutable<List<Str>> { }
     all: List<Str> = args()
     for i: Size in 1..all.size() {
         argv.add(all[i])
     }
     parsed: Parsed = spec.parse(argv)
-    port: Serial = Serial {}
+    port: Serial {}
     if !port.open(parsed.textOf("--port").value, parsed.wholeOf("--baud").value as Int32) {
         eprint("espmon: ${lastError()}\n")
         1
     } else {
-        stop: Atomic<Bool> = Atomic<Bool> { value = false }
+        stop: Atomic<Bool> { value = false }
         onSignal(SIGNAL_INT, stop)
         buf: Mutable<List<UInt8>> = @listOf()
         for i: Size in 0..CHUNK {
             buf.add(0)
         }
-        lines: LineBuffer = LineBuffer { LINE_CAP }
+        lines: LineBuffer { LINE_CAP }
         while !stop.load() {
             n: Int64 = port.read(buf.from(0), READ_MS)
             if n < 0 {

@@ -1,5 +1,5 @@
 // The esp32 library's tests: compiled to Python and run on the host.
-PROJECT: Project = Project { } with {
+PROJECT: Project { } with {
     name = "esp32.tests"
     srcDir = "."
     target = "py"

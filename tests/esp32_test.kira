@@ -32,20 +32,20 @@ feed: (t: Suite, buf: LineBuffer, text: Str) Maybe<Str> {
 }
 
 linesAreCutAtTheNewline: (t: Suite) Void {
-    buf: LineBuffer = LineBuffer { 64 }
+    buf: LineBuffer { 64 }
     t.check(feed(t, buf, "hel").isNull(), "no line before the newline")
     t.checkStr(feed(t, buf, "lo\r\n").value, "hello", "the line, its CR dropped")
     t.checkStr(feed(t, buf, "\n").value, "", "an empty line")
 }
 
 aLongLineIsCut: (t: Suite) Void {
-    buf: LineBuffer = LineBuffer { 4 }
+    buf: LineBuffer { 4 }
     t.checkStr(feed(t, buf, "abcdefgh\n").value, "abcd", "cut at the cap")
     t.checkStr(feed(t, buf, "xy\n").value, "xy", "the next line starts clean")
 }
 
 aPressNeedsItsStreak: (t: Suite) Void {
-    d: Debounce = Debounce { 3 }
+    d: Debounce { 3 }
     t.check(!d.step(true), "one reading is not a press")
     t.check(!d.step(true), "two are not")
     t.check(d.step(true), "three are")
@@ -56,7 +56,7 @@ aPressNeedsItsStreak: (t: Suite) Void {
 }
 
 noiseNeverPresses: (t: Suite) Void {
-    d: Debounce = Debounce { 2 }
+    d: Debounce { 2 }
     pressed: Mutable<Bool> = false
     for i: Size in 0..20 {
         if d.step(i % 2 == 0) {
@@ -67,13 +67,13 @@ noiseNeverPresses: (t: Suite) Void {
 }
 
 commandsAreSplit: (t: Suite) Void {
-    c: Command = Command { "  LED on  3 " }
+    c: Command { "  LED on  3 " }
     t.checkStr(c.verb(), "led", "the verb is lower case")
     t.check(c.count() == 2, "two arguments")
     t.checkStr(c.arg(0).value, "on", "the first argument as typed")
     t.checkStr(c.arg(1).value, "3", "the second")
     t.check(c.arg(2).isNull(), "none past the last")
-    e: Command = Command { "   " }
+    e: Command { "   " }
     t.checkStr(e.verb(), "", "a blank line has no verb")
     t.check(e.count() == 0, "and no arguments")
 }
@@ -104,7 +104,7 @@ aSeqWrapsInTwoBytes: (t: Suite) Void {
 
 aBadPayloadIsRefused: (t: Suite) Void {
     t.check(encode(1, 1, 0, "abcdef".bytes()).isNull(), "a payload not a multiple of 4 is refused")
-    big: Mutable<List<UInt8>> = List<UInt8> { }
+    big: Mutable<List<UInt8>> { }
     for i: Size in 0..1028 {
         big.add(0)
     }
@@ -113,7 +113,7 @@ aBadPayloadIsRefused: (t: Suite) Void {
 
 aFlippedByteFailsTheCrc: (t: Suite) Void {
     good: List<UInt8> = encode(2, 1, 1, "abcdefgh".bytes()).value
-    bad: Mutable<List<UInt8>> = List<UInt8> { }
+    bad: Mutable<List<UInt8>> { }
     for i: Size in 0..good.size() {
         bad.add(good[i])
     }
@@ -126,13 +126,13 @@ aMalformedFramesAreNamed: (t: Suite) Void {
     good: List<UInt8> = encode(2, 1, 1, "abcdefgh".bytes()).value
     t.check(check(good.slice(0, 10).toList()) == SHORT, "a header cut short is SHORT")
     t.check(check(good.slice(0, 20).toList()) == SHORT, "a frame cut short is SHORT")
-    noMagic: Mutable<List<UInt8>> = List<UInt8> { }
+    noMagic: Mutable<List<UInt8>> { }
     for i: Size in 0..good.size() {
         noMagic.add(good[i])
     }
     noMagic.set(0, 0)
     t.check(check(noMagic) == BAD_MAGIC, "a wrong magic is BAD_MAGIC")
-    longer: Mutable<List<UInt8>> = List<UInt8> { }
+    longer: Mutable<List<UInt8>> { }
     for i: Size in 0..good.size() {
         longer.add(good[i])
     }
@@ -141,13 +141,13 @@ aMalformedFramesAreNamed: (t: Suite) Void {
 }
 
 newestWinsAndLateFramesAreDropped: (t: Suite) Void {
-    n: Newest = Newest { }
+    n: Newest { }
     t.check(n.accept(5), "the first frame is newest")
     t.check(!n.accept(3), "an older frame is dropped")
     t.check(!n.accept(5), "a repeat is dropped")
     t.check(n.accept(6), "the next one is newer")
     t.check(!n.accept(0), "0 is 65530 behind 6, so it is stale, not a wrap")
-    w: Newest = Newest { }
+    w: Newest { }
     t.check(w.accept(65534), "a counter starts near the top")
     t.check(w.accept(65535), "and climbs")
     t.check(w.accept(0), "0 after 65535 is a wrap, so newer")
@@ -156,7 +156,7 @@ newestWinsAndLateFramesAreDropped: (t: Suite) Void {
 
 // Every frame the receiver completes from data, in order.
 receiveAll: (r: Receiver, data: List<UInt8>) List<Frame> {
-    got: Mutable<List<Frame>> = List<Frame> { }
+    got: Mutable<List<Frame>> { }
     for i: Size in 0..data.size() {
         f: Maybe<Frame> = r.push(data[i])
         if !f.isNull() {
@@ -167,14 +167,14 @@ receiveAll: (r: Receiver, data: List<UInt8>) List<Frame> {
 }
 
 aFrameArrivesByteByByte: (t: Suite) Void {
-    r: Receiver = Receiver { }
+    r: Receiver { }
     got: List<Frame> = receiveAll(r, encode(2, 1, 9, "abcdefgh".bytes()).value)
     t.check(got.size() == 1, "one frame, completed by its last byte")
     t.check(got.size() == 1 && got[0].seq == 9 && got[0].kind == 2, "and it is the frame sent")
 }
 
 noiseBeforeAFrameIsSkipped: (t: Suite) Void {
-    r: Receiver = Receiver { }
+    r: Receiver { }
     data: Mutable<List<UInt8>> = "junkBbytes".bytes()
     for b: UInt8 in encode(1, 1, 3, "wxyz".bytes()).value {
         data.add(b)
@@ -184,13 +184,13 @@ noiseBeforeAFrameIsSkipped: (t: Suite) Void {
 }
 
 aCorruptFrameIsDroppedAndTheNextOneArrives: (t: Suite) Void {
-    r: Receiver = Receiver { }
-    bad: Mutable<List<UInt8>> = List<UInt8> { }
+    r: Receiver { }
+    bad: Mutable<List<UInt8>> { }
     for b: UInt8 in encode(1, 1, 4, "aaaa".bytes()).value {
         bad.add(b)
     }
     bad.set(13, bad[13] + 1)
-    data: Mutable<List<UInt8>> = List<UInt8> { }
+    data: Mutable<List<UInt8>> { }
     for b: UInt8 in bad {
         data.add(b)
     }
@@ -203,8 +203,8 @@ aCorruptFrameIsDroppedAndTheNextOneArrives: (t: Suite) Void {
 }
 
 backToBackFramesAreBothEmitted: (t: Suite) Void {
-    r: Receiver = Receiver { }
-    data: Mutable<List<UInt8>> = List<UInt8> { }
+    r: Receiver { }
+    data: Mutable<List<UInt8>> { }
     for b: UInt8 in encode(1, 1, 10, "aaaa".bytes()).value {
         data.add(b)
     }
@@ -217,10 +217,10 @@ backToBackFramesAreBothEmitted: (t: Suite) Void {
 }
 
 aBogusLengthDoesNotStallTheStream: (t: Suite) Void {
-    r: Receiver = Receiver { }
+    r: Receiver { }
     // "BW", kind 1, version 1, flags 0, seq 0, then a length of 3, which is not a multiple of 4.
     bogus: Mutable<List<UInt8>> = @listOf(0x42, 0x57, 1, 1, 0, 0, 0, 0, 3, 0, 0, 0)
-    data: Mutable<List<UInt8>> = List<UInt8> { }
+    data: Mutable<List<UInt8>> { }
     for b: UInt8 in bogus {
         data.add(b)
     }
@@ -232,7 +232,7 @@ aBogusLengthDoesNotStallTheStream: (t: Suite) Void {
 }
 
 pub main: () Int32 {
-    t: Suite = Suite { title = "esp32_test - the esp32 library (lines, debounce, command)" }
+    t: Suite { title = "esp32_test - the esp32 library (lines, debounce, command)" }
     linesAreCutAtTheNewline(t)
     aLongLineIsCut(t)
     aPressNeedsItsStreak(t)

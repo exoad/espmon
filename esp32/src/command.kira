@@ -1,7 +1,7 @@
 // A command line, "verb arg arg": the verb in lower case and the arguments as they were typed.
 pub Command: Mutable<Any> {
     line: Str
-    parts: Mutable<List<Str>> = List<Str> { }
+    parts: Mutable<List<Str>> { }
 
     initially {
         parts = line.splitWhitespace()
