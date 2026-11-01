@@ -55,7 +55,7 @@ runProgram: (argv: List<Str>) Int32 {
 }
 
 runQuiet: (line: Str) Int32 {
-    runProgram(@listOf("cmd", "/c", "${line} > %TEMP%\\espmon-run.txt 2>&1"))
+    runProgram(@listOf("cmd", "/c", "${line} > %TEMP%\\espmon-mutant-run.txt 2>&1"))
 }
 
 compileTests: () Int32 {

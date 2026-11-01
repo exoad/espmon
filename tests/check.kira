@@ -8,7 +8,7 @@ runProgram: (argv: List<Str>) Int32 {
 }
 
 runQuiet: (line: Str) Int32 {
-    runProgram(@listOf("cmd", "/c", "${line} > %TEMP%\\espmon-run.txt 2>&1"))
+    runProgram(@listOf("cmd", "/c", "${line} > %TEMP%\\espmon-check-run.txt 2>&1"))
 }
 
 compileIn: (dir: Str) Int32 {
@@ -18,7 +18,7 @@ compileIn: (dir: Str) Int32 {
 pub main: () Int32 {
     failed: Mutable<Bool> = false
     all: List<Str> = args()
-    withMutants: Mutable<Bool> = false
+    withMutants: Mutable<Bool> = true
     for i: Size in 1..all.size() {
         withMutants = withMutants || all[i] == "--mutants"
     }
