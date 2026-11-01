@@ -40,7 +40,13 @@ MUTANTS: List<Mutant> = @listOf(
     Mutant { "ring.kira", "held.removeAt(0)", "held.removeAt(held.size() - 1)", "the ring drops the newest instead of the oldest" },
     Mutant { "lines.kira", "if b != CR && held.size() < cap {", "if b != CR {", "a line is not cut at its cap" },
     Mutant { "debounce.kira", "if streak >= need {", "if streak > need {", "a press needs one reading too many" },
-    Mutant { "command.kira", "n + 1 < parts.size() ? parts[n + 1] : null", "n < parts.size() ? parts[n + 1] : null", "an argument past the last is read" }
+    Mutant { "command.kira", "n + 1 < parts.size() ? parts[n + 1] : null", "n < parts.size() ? parts[n + 1] : null", "an argument past the last is read" },
+    Mutant { "bridge.kira", "faulted: Bool = mode != PASS && seen % every == 0", "faulted: Bool = mode != PASS && seen % every == 1", "the bridge faults the wrong frames" },
+    Mutant { "bridge.kira", "dropping: Bool = faulted && mode == DROP", "dropping: Bool = faulted && mode == CORRUPT", "the drop and corrupt modes are swapped" },
+    Mutant { "bridge.kira", "dropping: Bool = faulted && mode == DROP", "dropping: Bool = faulted && mode == DROP && false", "the drop mode never drops" },
+    Mutant { "bridge.kira", "flip: Int32 = flipping && i == wire.size() - 1 ? 0x5A : 0", "flip: Int32 = flipping && i == wire.size() - 1 ? 0x00 : 0", "the corrupt mode changes nothing" },
+    Mutant { "bridge.kira", "seen += 1", "seen += 2", "the frame count skips every other frame" },
+    Mutant { "bridge.kira", "if !got.isNull() {", "if !got.isNull() && false {", "the bridge forwards nothing" }
 )
 
 runProgram: (argv: List<Str>) Int32 {
@@ -48,12 +54,16 @@ runProgram: (argv: List<Str>) Int32 {
     p.isNull() ? 127 : p.value.wait()
 }
 
+runQuiet: (line: Str) Int32 {
+    runProgram(@listOf("cmd", "/c", "${line} > %TEMP%\\espmon-run.txt 2>&1"))
+}
+
 compileTests: () Int32 {
-    runProgram(@listOf("cmd", "/c", "cd /d tests && ${KIRA} --target py"))
+    runQuiet("cd /d tests && ${KIRA} --target py")
 }
 
 checkTests: () Str {
-    compileTests() != 0 ? "not viable" : runProgram(@listOf(PY, "tests\\esp32_test_kira.py")) != 0 ? "killed" : "passes"
+    compileTests() != 0 ? "not viable" : runQuiet("${PY} tests\\esp32_test_kira.py") != 0 ? "killed" : "passes"
 }
 
 pub main: () Int32 {

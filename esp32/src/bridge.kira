@@ -1,0 +1,33 @@
+esp32.frame.Frame as Frame
+esp32.frame.encode as encode
+esp32.link.Receiver as Receiver
+
+pub PASS: Int32 = 0
+pub DROP: Int32 = 1
+pub CORRUPT: Int32 = 2
+
+pub Bridge: Mutable<Any> {
+    mode: Int32
+    every: Int32
+    rx: Receiver { }
+    seen: Mutable<Int32> = 0
+
+    pub feed: (b: UInt8) List<UInt8> {
+        out: Mutable<List<UInt8>> { }
+        got: Maybe<Frame> = rx.push(b)
+        if !got.isNull() {
+            seen += 1
+            wire: List<UInt8> = encode(got.value.kind, got.value.ver, got.value.seq, got.value.payload).value
+            faulted: Bool = mode != PASS && seen % every == 0
+            dropping: Bool = faulted && mode == DROP
+            flipping: Bool = faulted && mode == CORRUPT
+            for i: Size in 0..wire.size() {
+                flip: Int32 = flipping && i == wire.size() - 1 ? 0x5A : 0
+                if !dropping {
+                    out.add(((wire[i] as Int32) ^ flip) as UInt8)
+                }
+            }
+        }
+        out
+    }
+}

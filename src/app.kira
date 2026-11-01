@@ -18,6 +18,10 @@ esp32.telemetry.Telemetry as Telemetry
 esp32.telemetry.encodeTelemetry as encodeTelemetry
 esp32.fw.timer.HwTimer as HwTimer
 esp32.frame.encode as encode
+esp32.bridge.Bridge as Bridge
+esp32.bridge.PASS as PASS
+esp32.bridge.DROP as DROP
+esp32.bridge.CORRUPT as CORRUPT
 esp32.frame.Frame as Frame
 esp32.link.Receiver as Receiver
 esp32.lines.LineBuffer as LineBuffer
@@ -302,6 +306,19 @@ Shell: Mutable<Any> {
             start: UInt32 = clock.millis()
             while clock.millis() - start < 8000 {
             }
+        } else if verb == "bridge" {
+            sub: Str = c.arg(0).isNull() ? "pass" : c.arg(0).value
+            mode: Int32 = sub == "drop" ? DROP : sub == "corrupt" ? CORRUPT : PASS
+            every: Int32 = c.arg(1).isNull() ? 2 : c.arg(1).value.toInt64().unwrapOr(2) as Int32
+            br: Bridge { mode = mode, every = every }
+            for seq: Int32 in 1..5 {
+                for x: UInt8 in encode(1, 1, seq, "abcd".bytes()).value {
+                    for y: UInt8 in br.feed(x) {
+                        console.write(y)
+                    }
+                }
+            }
+            console.println("bridge ${sub} every ${every} done")
         } else if verb == "irq" {
             pinInterruptProbe()
         } else if verb == "wifi" {

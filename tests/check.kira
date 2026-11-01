@@ -7,8 +7,12 @@ runProgram: (argv: List<Str>) Int32 {
     p.isNull() ? 127 : p.value.wait()
 }
 
+runQuiet: (line: Str) Int32 {
+    runProgram(@listOf("cmd", "/c", "${line} > %TEMP%\\espmon-run.txt 2>&1"))
+}
+
 compileIn: (dir: Str) Int32 {
-    runProgram(@listOf("cmd", "/c", "cd /d ${dir} && ${KIRA} --target py"))
+    runQuiet("cd /d ${dir} && ${KIRA} --target py")
 }
 
 pub main: () Int32 {
@@ -28,7 +32,7 @@ pub main: () Int32 {
         }
     }
     println("== host tests")
-    if runProgram(@listOf(PY, "tests\\esp32_test_kira.py")) != 0 {
+    if runQuiet("${PY} tests\\esp32_test_kira.py") != 0 {
         println("   FAILED")
         failed = true
     } else {
@@ -36,7 +40,7 @@ pub main: () Int32 {
     }
     if withMutants {
         println("== mutation tests")
-        if runProgram(@listOf(PY, "tests\\mutants_kira.py")) != 0 {
+        if runQuiet("${PY} tests\\mutants_kira.py") != 0 {
             println("   FAILED")
             failed = true
         } else {

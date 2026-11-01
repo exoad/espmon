@@ -29,6 +29,10 @@ esp32.ina226.currentMilliamps as currentMilliamps
 esp32.ina226.calibration as calibration
 esp32.sensors.ds18b20Celsius as ds18b20Celsius
 esp32.ring.Ring as Ring
+esp32.bridge.Bridge as Bridge
+esp32.bridge.PASS as PASS
+esp32.bridge.DROP as DROP
+esp32.bridge.CORRUPT as CORRUPT
 
 // esp32_test: the library's line buffer, debounce and command parser.
 
@@ -397,6 +401,58 @@ telemetryRowsAreCells: (t: Suite) Void {
     t.checkStr(row.joinToString(","), "2026-11-01T12:00:00Z,1500,200000,2510,-48", "the cells, comma-separated")
 }
 
+fourFrames: () List<UInt8> {
+    all: Mutable<List<UInt8>> { }
+    for seq: Int32 in 1..5 {
+        for x: UInt8 in encode(1, 1, seq, "abcd".bytes()).value {
+            all.add(x)
+        }
+    }
+    all
+}
+
+bridgeFeedAll: (br: Bridge, data: List<UInt8>) List<UInt8> {
+    out: Mutable<List<UInt8>> { }
+    for x: UInt8 in data {
+        for y: UInt8 in br.feed(x) {
+            out.add(y)
+        }
+    }
+    out
+}
+
+seqsThrough: (bytes: List<UInt8>) Str {
+    r: Receiver { }
+    seqs: Mutable<List<Str>> { }
+    for f: Frame in receiveAll(r, bytes) {
+        seqs.add("${f.seq}")
+    }
+    seqs.joinToString(",")
+}
+
+bridgePassesFramesUnchanged: (t: Suite) Void {
+    br: Bridge { mode = PASS, every = 1 }
+    input: List<UInt8> = fourFrames()
+    out: List<UInt8> = bridgeFeedAll(br, input)
+    t.check(out.size() == input.size(), "a passing bridge forwards every byte")
+    t.checkStr(seqsThrough(out), "1,2,3,4", "all four frames come through")
+}
+
+bridgeDropsEveryNthFrame: (t: Suite) Void {
+    br: Bridge { mode = DROP, every = 2 }
+    t.checkStr(seqsThrough(bridgeFeedAll(br, fourFrames())), "1,3", "every second frame is dropped")
+    br3: Bridge { mode = DROP, every = 3 }
+    t.checkStr(seqsThrough(bridgeFeedAll(br3, fourFrames())), "1,2,4", "every third frame is dropped")
+}
+
+bridgeCorruptsEveryNthFrame: (t: Suite) Void {
+    br: Bridge { mode = CORRUPT, every = 2 }
+    input: List<UInt8> = fourFrames()
+    out: List<UInt8> = bridgeFeedAll(br, input)
+    t.check(out.size() == input.size(), "a corrupting bridge keeps the stream the same length")
+    t.checkStr(seqsThrough(out), "1,3", "the corrupted frames fail their CRC and do not come out as frames")
+}
+
 pub main: () Int32 {
     t: Suite { title = "esp32_test - the esp32 library (lines, debounce, command)" }
     linesAreCutAtTheNewline(t)
@@ -417,6 +473,9 @@ pub main: () Int32 {
     backToBackFramesAreBothEmitted(t)
     aBogusLengthDoesNotStallTheStream(t)
     telemetryRoundTrips(t)
+    bridgePassesFramesUnchanged(t)
+    bridgeDropsEveryNthFrame(t)
+    bridgeCorruptsEveryNthFrame(t)
     telemetryRowsAreCells(t)
     telemetryRefusesOtherFrames(t)
     selftestReportIsReadAndAnAbsentSummaryFails(t)
