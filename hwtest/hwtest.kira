@@ -1,0 +1,67 @@
+kira.args as args
+kira.io as io
+kira.os as os
+kira.time as time
+esp32.lines.LineBuffer as LineBuffer
+esp32.selftest.Report as Report
+esp32.selftest.readReport as readReport
+
+// hwtest: runs the board's selftest over the serial console, prints every failed check, and exits 0 only when the
+// report is complete and every check passed. Exit 2 is a port that would not open; exit 1 is a failed or absent report.
+
+DEFAULT_PORT: Str = "COM10"
+BAUD: Int64 = 115200
+READ_MS: Int64 = 200
+CHUNK: Size = 256
+LINE_CAP: Size = 512
+WAIT_MS: Int64 = 20000
+
+pub main: () Int32 {
+    spec: ArgSpec = argSpec("hwtest", "Run the board's selftest and exit 0 only when every check passes.")
+    spec.text("--port", DEFAULT_PORT, "the serial port")
+    argv: Mutable<List<Str>> { }
+    all: List<Str> = args()
+    for i: Size in 1..all.size() {
+        argv.add(all[i])
+    }
+    parsed: Parsed = spec.parse(argv)
+    port: Serial { }
+    if !port.open(parsed.textOf("--port").value, BAUD as Int32) {
+        eprint("hwtest: ${lastError()}\n")
+        2
+    } else {
+        port.write("selftest\r\n".bytes())
+        buf: Mutable<List<UInt8>> = @listOf()
+        for i: Size in 0..CHUNK {
+            buf.add(0)
+        }
+        buffer: LineBuffer { LINE_CAP }
+        lines: Mutable<List<Str>> { }
+        deadline: Int64 = monoNowMs() + WAIT_MS
+        done: Mutable<Bool> = false
+        while !done && monoNowMs() < deadline {
+            n: Int64 = port.read(buf.from(0), READ_MS)
+            if n < 0 {
+                eprint("hwtest: ${lastError()}\n")
+                done = true
+            } else {
+                for i: Size in 0..(n as Size) {
+                    line: Maybe<Str> = buffer.push(buf.get(i))
+                    if !line.isNull() {
+                        lines.add(line.value)
+                        if line.value.startsWith("selftest ") {
+                            done = true
+                        }
+                    }
+                }
+            }
+        }
+        port.close()
+        report: Report = readReport(lines)
+        for i: Size in 0..report.failures.size() {
+            println(report.failures[i])
+        }
+        println("hwtest: ${report.passed}/${report.total} checks passed")
+        report.ok() ? 0 : 1
+    }
+}

@@ -1,0 +1,30 @@
+// The selftest command's report: one line per check, "ok <name>" or "FAIL <name>: <detail>", then "selftest N/M".
+// A report with no summary line is not ok: an absent result is a failure, never a pass.
+
+pub Report: Mutable<Any> {
+    pub passed: Mutable<Int32> = -1
+    pub total: Mutable<Int32> = -1
+    pub failures: Mutable<List<Str>> { }
+
+    pub ok: () Bool {
+        total > 0 && passed == total && failures.size() == 0
+    }
+}
+
+// Reads the report from its lines, in the order the firmware prints them.
+pub readReport: (lines: List<Str>) Report {
+    r: Report { }
+    for i: Size in 0..lines.size() {
+        line: Str = lines[i]
+        if line.startsWith("FAIL ") {
+            r.failures.add(line)
+        } else if line.startsWith("selftest ") {
+            parts: List<Str> = line.substring(9, line.length()).split("/")
+            if parts.size() == 2 {
+                r.passed = parts[0].toInt64().unwrapOr(-1) as Int32
+                r.total = parts[1].toInt64().unwrapOr(-1) as Int32
+            }
+        }
+    }
+    r
+}

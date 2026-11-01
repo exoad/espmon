@@ -1,0 +1,53 @@
+esp32.frame.Frame as Frame
+esp32.frame.encode as encode
+esp32.frame.littleEndian as littleEndian
+
+// The board's status frame: uptime and heap are measured on the board; temperature and signal are stored with a bias,
+// so each fits an unsigned 32-bit field. Sixteen payload bytes, four little-endian fields.
+pub KIND_TELEMETRY: Int32 = 3
+pub TEMP_BIAS: Int64 = 100000
+pub RSSI_BIAS: Int64 = 1000
+
+pub Telemetry: Any {
+    pub uptimeMs: Int64
+    pub heapBytes: Int64
+    pub tempCenti: Int64
+    pub rssiDbm: Int64
+}
+
+// The value as width little-endian bytes.
+pub leBytes: (v: Int64, width: Int32) List<UInt8> {
+    out: Mutable<List<UInt8>> { }
+    for i: Int32 in 0..width {
+        out.add(((v >> (8 * i)) & 0xFF) as UInt8)
+    }
+    out
+}
+
+// The telemetry as a frame, or none when it cannot be framed.
+pub encodeTelemetry: (seq: Int32, t: Telemetry) Maybe<List<UInt8>> {
+    body: Mutable<List<UInt8>> { }
+    for b: UInt8 in leBytes(t.uptimeMs, 4) {
+        body.add(b)
+    }
+    for b: UInt8 in leBytes(t.heapBytes, 4) {
+        body.add(b)
+    }
+    for b: UInt8 in leBytes(t.tempCenti + TEMP_BIAS, 4) {
+        body.add(b)
+    }
+    for b: UInt8 in leBytes(t.rssiDbm + RSSI_BIAS, 4) {
+        body.add(b)
+    }
+    encode(KIND_TELEMETRY, 1, seq, body)
+}
+
+// The telemetry a frame carries, or none when the frame is another kind or the wrong size.
+pub decodeTelemetry: (f: Frame) Maybe<Telemetry> {
+    if f.kind != KIND_TELEMETRY || f.payload.size() != 16 {
+        null
+    } else {
+        fields: Telemetry { littleEndian(f.payload, 0, 4), littleEndian(f.payload, 4, 4), littleEndian(f.payload, 8, 4) - TEMP_BIAS, littleEndian(f.payload, 12, 4) - RSSI_BIAS }
+        fields
+    }
+}

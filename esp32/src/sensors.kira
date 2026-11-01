@@ -1,0 +1,6 @@
+// DS18B20 temperature probe, as a pure conversion: the 16-bit scratchpad temperature is two's complement in 1/16 C.
+// 0x0550 is the power-on value, 85 C.
+
+pub ds18b20Celsius: (raw: Int32) Float64 {
+    (raw >= 32768 ? raw - 65536 : raw).toFloat64() / 16.0
+}

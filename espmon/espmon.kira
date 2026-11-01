@@ -3,8 +3,13 @@ kira.io as io
 kira.os as os
 kira.time as time
 esp32.lines.LineBuffer as LineBuffer
+esp32.link.Receiver as Receiver
+esp32.frame.Frame as Frame
+esp32.telemetry.decodeTelemetry as decodeTelemetry
+esp32.telemetry.Telemetry as Telemetry
 
-// espmon: reads the ESP32's serial port and prints each line with a UTC time.
+// espmon: reads the ESP32's serial port and prints each line with a UTC time. With --telemetry it reads the board's
+// telemetry frames out of the same stream and prints each one, and skips the text.
 
 DEFAULT_PORT: Str = "COM10"
 DEFAULT_BAUD: Int64 = 115200
@@ -16,6 +21,7 @@ pub main: () Int32 {
     spec: ArgSpec = argSpec("espmon", "Print the ESP32's serial output with UTC times.")
     spec.text("--port", DEFAULT_PORT, "the serial port")
     spec.whole("--baud", DEFAULT_BAUD, "the baud rate")
+    spec.flag("--telemetry", "print the board's telemetry frames instead of its text")
     argv: Mutable<List<Str>> { }
     all: List<Str> = args()
     for i: Size in 1..all.size() {
@@ -34,6 +40,8 @@ pub main: () Int32 {
             buf.add(0)
         }
         lines: LineBuffer { LINE_CAP }
+        frames: Receiver { }
+        telemetry: Bool = parsed.isSet("--telemetry")
         while !stop.load() {
             n: Int64 = port.read(buf.from(0), READ_MS)
             if n < 0 {
@@ -41,9 +49,17 @@ pub main: () Int32 {
                 stop.store(true)
             } else {
                 for i: Size in 0..(n as Size) {
-                    line: Maybe<Str> = lines.push(buf.get(i))
-                    if !line.isNull() {
-                        println("${utcStamp(wallNowNs())} ${line.value}")
+                    if telemetry {
+                        got: Maybe<Frame> = frames.push(buf.get(i))
+                        if !got.isNull() && !decodeTelemetry(got.value).isNull() {
+                            t: Telemetry = decodeTelemetry(got.value).value
+                            println("${utcStamp(wallNowNs())} uptime ${t.uptimeMs} ms heap ${t.heapBytes} B temp ${t.tempCenti} centi-C rssi ${t.rssiDbm} dBm")
+                        }
+                    } else {
+                        line: Maybe<Str> = lines.push(buf.get(i))
+                        if !line.isNull() {
+                            println("${utcStamp(wallNowNs())} ${line.value}")
+                        }
                     }
                 }
             }

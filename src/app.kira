@@ -13,6 +13,8 @@ esp32.fw.wifi as wifi
 esp32.fw.interrupts as interrupts
 esp32.fw.timer as timer
 esp32.fw.nvs as nvs
+esp32.telemetry.Telemetry as Telemetry
+esp32.telemetry.encodeTelemetry as encodeTelemetry
 esp32.fw.timer.HwTimer as HwTimer
 esp32.frame.encode as encode
 esp32.frame.Frame as Frame
@@ -53,6 +55,9 @@ Shell: Mutable<Any> {
     sent: Mutable<Int32> = 0
     received: Mutable<Int32> = 0
     linkSeq: Mutable<Int32> = 0
+    telemetryOn: Mutable<Bool> = false
+    telemetrySeq: Mutable<Int32> = 0
+    lastTelemetry: Mutable<UInt32> = 0
     buf: LineBuffer { LINE_CAP }
     pad: Debounce { PRESS_STEPS }
     lit: Mutable<Bool> = false
@@ -182,6 +187,20 @@ Shell: Mutable<Any> {
         console.println("link sent status seq ${linkSeq - 1}")
     }
 
+    // Sends one telemetry frame (kind 3) on the console: uptime, free heap, die temperature and signal. The console
+    // carries the text shell too; a monitor reads the frames out of it and skips the text.
+    sendTelemetry: () Void {
+        t: Telemetry { clock.millis() as Int64, chip.freeHeap(), (chip.temperatureC() as Float64 * 100.0).toInt64(), wifi.rssi() as Int64 }
+        frame: Maybe<List<UInt8>> = encodeTelemetry(telemetrySeq, t)
+        telemetrySeq = (telemetrySeq + 1) % 65536
+        lastTelemetry = clock.millis()
+        if !frame.isNull() {
+            for b: UInt8 in frame.value {
+                console.write(b)
+            }
+        }
+    }
+
     // Reads every byte waiting on the link, and acts on each whole frame: kind 2 sets the LED from its first byte.
     drainLink: () Void {
         b: Mutable<Maybe<UInt8>> = linkPort.read()
@@ -264,6 +283,16 @@ Shell: Mutable<Any> {
         } else if verb == "restart" {
             console.println("restarting")
             chip.restart()
+        } else if verb == "telemetry" {
+            sub: Str = c.arg(0).isNull() ? "" : c.arg(0).value
+            if sub == "on" {
+                telemetryOn = true
+            } else if sub == "off" {
+                telemetryOn = false
+            } else if sub == "once" {
+                sendTelemetry()
+            }
+            console.println("telemetry ${telemetryOn ? "on" : "off"}")
         } else if verb == "irq" {
             pinInterruptProbe()
         } else if verb == "wifi" {
@@ -278,6 +307,9 @@ Shell: Mutable<Any> {
 
     pub tick: () Void {
         drainLink()
+        if telemetryOn && clock.millis() - lastTelemetry >= 1000 {
+            sendTelemetry()
+        }
         b: Mutable<Maybe<UInt8>> = console.read()
         while !b.isNull() {
             line: Maybe<Str> = buf.push(b.value)

@@ -1,0 +1,34 @@
+// TI INA226 power monitor, as pure conversions: the register values come in, physical units go out. The I2C reads
+// that fetch them belong to the firmware library. Registers: shunt voltage 0x01 (2.5 uV per count, signed), bus
+// voltage 0x02 (1.25 mV per count, unsigned), power 0x03 (25 times the current LSB), current 0x04.
+
+pub SHUNT_REG: Int32 = 1
+pub BUS_REG: Int32 = 2
+pub POWER_REG: Int32 = 3
+pub CURRENT_REG: Int32 = 4
+
+// A 16-bit register read as two's complement.
+pub signed16: (raw: Int32) Int32 {
+    raw >= 32768 ? raw - 65536 : raw
+}
+
+// The shunt voltage in microvolts, from its signed register.
+pub shuntMicrovolts: (raw: Int32) Float64 {
+    signed16(raw).toFloat64() * 2.5
+}
+
+// The bus voltage in millivolts, from its unsigned register.
+pub busMillivolts: (raw: Int32) Float64 {
+    raw.toFloat64() * 1.25
+}
+
+// The current in milliamps through a shunt of rshuntMilliohm, from the shunt voltage (I = V / R: microvolts over
+// milliohms is milliamps).
+pub currentMilliamps: (shuntUv: Float64, rshuntMilliohm: Float64) Float64 {
+    shuntUv / rshuntMilliohm
+}
+
+// The calibration register for a shunt of rshuntMilliohm and a current LSB of lsbMicroamps.
+pub calibration: (rshuntMilliohm: Float64, lsbMicroamps: Float64) Int32 {
+    (5120000.0 / (lsbMicroamps * rshuntMilliohm)).toInt64() as Int32
+}

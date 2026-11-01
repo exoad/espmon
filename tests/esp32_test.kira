@@ -16,6 +16,17 @@ esp32.frame.BAD_MAGIC as BAD_MAGIC
 esp32.frame.BAD_LENGTH as BAD_LENGTH
 esp32.frame.BAD_CRC as BAD_CRC
 esp32.link.Receiver as Receiver
+esp32.telemetry.Telemetry as Telemetry
+esp32.selftest.Report as Report
+esp32.telemetry.encodeTelemetry as encodeTelemetry
+esp32.telemetry.decodeTelemetry as decodeTelemetry
+esp32.selftest.readReport as readReport
+esp32.ina226.busMillivolts as busMillivolts
+esp32.ina226.shuntMicrovolts as shuntMicrovolts
+esp32.ina226.currentMilliamps as currentMilliamps
+esp32.ina226.calibration as calibration
+esp32.sensors.ds18b20Celsius as ds18b20Celsius
+esp32.ring.Ring as Ring
 
 // esp32_test: the library's line buffer, debounce and command parser.
 
@@ -231,6 +242,153 @@ aBogusLengthDoesNotStallTheStream: (t: Suite) Void {
     t.check(got.size() == 1 && got[0].seq == 12, "a header claiming 3 bytes is skipped and the frame after it arrives")
 }
 
+telemetryRoundTrips: (t: Suite) Void {
+    sent: Telemetry { 123456, 98765, -500, -60 }
+    bytes: List<UInt8> = encodeTelemetry(7, sent).value
+    r: Receiver { }
+    got: List<Frame> = receiveAll(r, bytes)
+    t.check(got.size() == 1, "one telemetry frame comes out of its bytes")
+    back: Maybe<Telemetry> = decodeTelemetry(got[0])
+    t.check(!back.isNull(), "and it decodes")
+    t.check(back.value.uptimeMs == 123456 && back.value.heapBytes == 98765, "uptime and heap come back")
+    t.check(back.value.tempCenti == -500 && back.value.rssiDbm == -60, "a negative temperature and signal come back")
+    t.check(got[0].ver == 1 && got[0].kind == 3, "telemetry is framed as kind 3, version 1")
+}
+
+telemetryRefusesOtherFrames: (t: Suite) Void {
+    other: Frame = decode(encode(1, 1, 0, "abcdefgh".bytes()).value).value
+    t.check(decodeTelemetry(other).isNull(), "a status frame is not telemetry")
+    short: Frame = decode(encode(3, 1, 0, "abcd".bytes()).value).value
+    t.check(decodeTelemetry(short).isNull(), "telemetry of the wrong size is refused")
+}
+
+selftestReportIsReadAndAnAbsentSummaryFails: (t: Suite) Void {
+    r: Report = readReport(@listOf("ok a", "FAIL b: read low", "ok c", "selftest 2/3"))
+    t.check(r.passed == 2 && r.total == 3, "the summary's counts are read")
+    t.check(r.failures.size() == 1 && !r.ok(), "a failed check makes the report not ok")
+    t.check(readReport(@listOf("ok a", "selftest 2/2")).ok(), "a full pass is ok")
+    t.check(!readReport(@listOf("FAIL a: low", "selftest 2/2")).ok(), "a FAIL line is not ok even under a full count")
+    t.check(!readReport(@listOf("ok a")).ok(), "no summary line is not ok")
+    t.check(!readReport(@listOf("ok a", "selftest 0/0")).ok(), "zero checks is not ok")
+}
+
+ina226ConvertsItsRegisters: (t: Suite) Void {
+    t.check(busMillivolts(8000) == 10000.0, "8000 counts of bus voltage is 10000 mV")
+    t.check(shuntMicrovolts(1000) == 2500.0, "1000 counts of shunt voltage is 2500 uV")
+    t.check(shuntMicrovolts(65536 - 1000) == -2500.0, "a negative shunt voltage is two's complement")
+    t.check(shuntMicrovolts(32768) == -81920.0, "the sign boundary: 32768 is the most negative count")
+    t.check(currentMilliamps(2500.0, 10.0) == 250.0, "2500 uV across 10 mOhm is 250 mA")
+    t.check(calibration(10.0, 100.0) == 5120, "the calibration register for 10 mOhm and 100 uA")
+}
+
+ds18b20ReadsTwosComplement: (t: Suite) Void {
+    t.check(ds18b20Celsius(1360) == 85.0, "0x0550 is the power-on 85 C")
+    t.check(ds18b20Celsius(65528) == -0.5, "0xFFF8 is minus half a degree")
+    t.check(ds18b20Celsius(0) == 0.0, "zero is zero")
+    t.check(ds18b20Celsius(32768) == -2048.0, "the sign boundary: 32768 is the most negative count")
+}
+
+ringKeepsTheNewestSamples: (t: Suite) Void {
+    r: Ring { 3 }
+    for v: Int64 in 1..6 {
+        r.push(v)
+    }
+    t.check(r.count() == 3, "a ring of 3 holds 3")
+    t.check(r.at(0) == 3 && r.at(2) == 5, "the window is the newest three, oldest first")
+}
+
+// Seeded so every run sees the same bytes: a linear congruential generator, 31 bits.
+noiseNeverFramesAndAFrameAfterItAlwaysArrives: (t: Suite) Void {
+    seed: Mutable<Int64> = 12345
+    noise: Mutable<List<UInt8>> { }
+    for i: Int32 in 0..4000 {
+        seed = (seed * 1103515245 + 12345) & 0x7FFFFFFF
+        noise.add(((seed >> 16) & 0xFF) as UInt8)
+    }
+    r: Receiver { }
+    spurious: List<Frame> = receiveAll(r, noise)
+    t.check(spurious.size() == 0, "random bytes complete no frame with a valid CRC")
+    tail: List<UInt8> = encode(2, 1, 99, "fuzzok!!".bytes()).value
+    got: List<Frame> = receiveAll(r, tail)
+    t.check(got.size() == 1 && got[0].seq == 99, "a frame after the noise still arrives")
+}
+
+// Every other frame has a payload byte flipped: those are dropped, and the clean ones between them all arrive.
+corruptedFramesAreDroppedAndTheCleanOnesArrive: (t: Suite) Void {
+    seed: Mutable<Int64> = 777
+    r: Receiver = Receiver { }
+    delivered: Mutable<Int32> = 0
+    for round: Int32 in 0..300 {
+        bytes: Mutable<List<UInt8>> = encode(1, 1, round, "abcdefgh".bytes()).value
+        if round % 2 == 0 {
+            seed = (seed * 1103515245 + 12345) & 0x7FFFFFFF
+            at: Size = 12 + (seed % 8) as Size
+            bytes.set(at, (bytes[at] ^ 0x5A) as UInt8)
+        }
+        delivered = delivered + (receiveAll(r, bytes).size() as Int32)
+    }
+    t.check(delivered == 150, "exactly the 150 clean frames arrive, the corrupt ones are dropped: got ${delivered}")
+}
+
+checkRefusesASecondMagicByteAndAnOversizedLength: (t: Suite) Void {
+    good: List<UInt8> = encode(2, 1, 1, "abcdefgh".bytes()).value
+    wrongSecond: Mutable<List<UInt8>> { }
+    for b: UInt8 in good {
+        wrongSecond.add(b)
+    }
+    wrongSecond.set(1, 88)
+    t.check(check(wrongSecond) == BAD_MAGIC, "a wrong second magic byte is BAD_MAGIC")
+    // A header claiming 1028 payload bytes, with 1000 bytes behind it: refused now, not waited for.
+    huge: Mutable<List<UInt8>> { }
+    for b: Int32 in @listOf(0x42, 0x57, 1, 1, 0, 0, 0, 0, 0x04, 0x04, 0, 0) {
+        huge.add(b as UInt8)
+    }
+    for i: Int32 in 0..1000 {
+        huge.add(0)
+    }
+    t.check(check(huge) == BAD_LENGTH, "a length past MAX_PAYLOAD is BAD_LENGTH, not a frame to wait for")
+}
+
+sequenceKeepsItsTwoBytes: (t: Suite) Void {
+    got: Maybe<Frame> = decode(encode(1, 1, 300, "abcd".bytes()).value)
+    t.check(got.value.seq == 300, "a sequence number past 255 keeps its high byte")
+}
+
+aFrameHalfAWindowAheadIsNotNewer: (t: Suite) Void {
+    n: Newest = Newest { }
+    t.check(n.accept(0), "the first frame is newest")
+    t.check(!n.accept(32768), "exactly half the window ahead is not newer")
+    t.check(n.accept(32767), "one short of half the window ahead is newer")
+}
+
+aReceiverRefusesAnOversizedHeaderAndTheFrameAfterItArrives: (t: Suite) Void {
+    r: Receiver = Receiver { }
+    data: Mutable<List<UInt8>> { }
+    for b: Int32 in @listOf(0x42, 0x57, 1, 1, 0, 0, 0, 0, 0x04, 0x04, 0, 0) {
+        data.add(b as UInt8)
+    }
+    for b: UInt8 in encode(1, 1, 21, "wxyz".bytes()).value {
+        data.add(b)
+    }
+    got: List<Frame> = receiveAll(r, data)
+    t.check(got.size() == 1 && got[0].seq == 21, "an oversized header is skipped and the frame after it arrives")
+}
+
+// A B with no W behind it, then bytes that would read as a 1024-byte length if the B were a header: the frame behind
+// them must still arrive, so the receiver must need both magic bytes before it waits for a length.
+aReceiverNeedsBothMagicBytes: (t: Suite) Void {
+    r: Receiver = Receiver { }
+    data: Mutable<List<UInt8>> { }
+    for b: Int32 in @listOf(0x42, 0x58, 0, 0, 0, 0, 0, 0, 0x00, 0x04, 0, 0) {
+        data.add(b as UInt8)
+    }
+    for b: UInt8 in encode(1, 1, 22, "wxyz".bytes()).value {
+        data.add(b)
+    }
+    got: List<Frame> = receiveAll(r, data)
+    t.check(got.size() == 1 && got[0].seq == 22, "a B without a W is noise, and the frame after it arrives")
+}
+
 pub main: () Int32 {
     t: Suite { title = "esp32_test - the esp32 library (lines, debounce, command)" }
     linesAreCutAtTheNewline(t)
@@ -250,5 +408,18 @@ pub main: () Int32 {
     aCorruptFrameIsDroppedAndTheNextOneArrives(t)
     backToBackFramesAreBothEmitted(t)
     aBogusLengthDoesNotStallTheStream(t)
+    telemetryRoundTrips(t)
+    telemetryRefusesOtherFrames(t)
+    selftestReportIsReadAndAnAbsentSummaryFails(t)
+    ina226ConvertsItsRegisters(t)
+    ds18b20ReadsTwosComplement(t)
+    ringKeepsTheNewestSamples(t)
+    noiseNeverFramesAndAFrameAfterItAlwaysArrives(t)
+    corruptedFramesAreDroppedAndTheCleanOnesArrive(t)
+    aReceiverNeedsBothMagicBytes(t)
+    aReceiverRefusesAnOversizedHeaderAndTheFrameAfterItArrives(t)
+    aFrameHalfAWindowAheadIsNotNewer(t)
+    sequenceKeepsItsTwoBytes(t)
+    checkRefusesASecondMagicByteAndAnOversizedLength(t)
     t.finish()
 }

@@ -1,0 +1,23 @@
+// A fixed-size window of the newest samples: a push past capacity drops the oldest, so the window is always the latest
+// cap values, oldest first.
+
+pub Ring: Mutable<Any> {
+    cap: Int32
+    held: Mutable<List<Int64>> { }
+
+    pub push: (v: Int64) Void {
+        if held.size() >= cap as Size {
+            held.removeAt(0)
+        }
+        held.add(v)
+    }
+
+    pub count: () Int32 {
+        held.size() as Int32
+    }
+
+    // The ith sample, 0 the oldest kept.
+    pub at: (i: Int32) Int64 {
+        held.get(i as Size)
+    }
+}
