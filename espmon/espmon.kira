@@ -7,9 +7,12 @@ esp32.link.Receiver as Receiver
 esp32.frame.Frame as Frame
 esp32.telemetry.decodeTelemetry as decodeTelemetry
 esp32.telemetry.Telemetry as Telemetry
+esp32.telemetry.telemetryRow as telemetryRow
+esp32.telemetry.telemetryHeader as telemetryHeader
 
 // espmon: reads the ESP32's serial port and prints each line with a UTC time. With --telemetry it reads the board's
-// telemetry frames out of the same stream and prints each one, and skips the text.
+// telemetry frames out of the same stream and prints each one, and skips the text. With --csv PATH it also appends
+// each frame as a CSV row to PATH, under a header row, and implies --telemetry.
 
 DEFAULT_PORT: Str = "COM10"
 DEFAULT_BAUD: Int64 = 115200
@@ -22,6 +25,7 @@ pub main: () Int32 {
     spec.text("--port", DEFAULT_PORT, "the serial port")
     spec.whole("--baud", DEFAULT_BAUD, "the baud rate")
     spec.flag("--telemetry", "print the board's telemetry frames instead of its text")
+    spec.text("--csv", "", "also append each telemetry frame to this CSV file")
     argv: Mutable<List<Str>> { }
     all: List<Str> = args()
     for i: Size in 1..all.size() {
@@ -41,7 +45,15 @@ pub main: () Int32 {
         }
         lines: LineBuffer { LINE_CAP }
         frames: Receiver { }
-        telemetry: Bool = parsed.isSet("--telemetry")
+        csvPath: Str = parsed.textOf("--csv").unwrapOr("")
+        telemetry: Bool = parsed.isSet("--telemetry") || csvPath != ""
+        csvFile: Maybe<FileOut> = csvPath == "" ? null : openAppend(csvPath)
+        if csvPath != "" && csvFile.isNull() {
+            eprint("espmon: cannot open ${csvPath}\n")
+            stop.store(true)
+        } else if csvPath != "" && csvFile.value.size() == 0 {
+            csvFile.value.write(csvLine(telemetryHeader()).bytes())
+        }
         while !stop.load() {
             n: Int64 = port.read(buf.from(0), READ_MS)
             if n < 0 {
@@ -53,7 +65,12 @@ pub main: () Int32 {
                         got: Maybe<Frame> = frames.push(buf.get(i))
                         if !got.isNull() && !decodeTelemetry(got.value).isNull() {
                             t: Telemetry = decodeTelemetry(got.value).value
-                            println("${utcStamp(wallNowNs())} uptime ${t.uptimeMs} ms heap ${t.heapBytes} B temp ${t.tempCenti} centi-C rssi ${t.rssiDbm} dBm")
+                            stamp: Str = utcStamp(wallNowNs())
+                            println("${stamp} uptime ${t.uptimeMs} ms heap ${t.heapBytes} B temp ${t.tempCenti} centi-C rssi ${t.rssiDbm} dBm")
+                            if !csvFile.isNull() {
+                                csvFile.value.write(csvLine(telemetryRow(stamp, t)).bytes())
+                                csvFile.value.sync()
+                            }
                         }
                     } else {
                         line: Maybe<Str> = lines.push(buf.get(i))
@@ -65,6 +82,9 @@ pub main: () Int32 {
             }
         }
         port.close()
-        0
+        if !csvFile.isNull() {
+            csvFile.value.close()
+        }
+        csvPath != "" && csvFile.isNull() ? 1 : 0
     }
 }

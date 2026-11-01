@@ -17,6 +17,8 @@ esp32.frame.BAD_LENGTH as BAD_LENGTH
 esp32.frame.BAD_CRC as BAD_CRC
 esp32.link.Receiver as Receiver
 esp32.telemetry.Telemetry as Telemetry
+esp32.telemetry.telemetryRow as telemetryRow
+esp32.telemetry.telemetryHeader as telemetryHeader
 esp32.selftest.Report as Report
 esp32.telemetry.encodeTelemetry as encodeTelemetry
 esp32.telemetry.decodeTelemetry as decodeTelemetry
@@ -389,6 +391,12 @@ aReceiverNeedsBothMagicBytes: (t: Suite) Void {
     t.check(got.size() == 1 && got[0].seq == 22, "a B without a W is noise, and the frame after it arrives")
 }
 
+telemetryRowsAreCells: (t: Suite) Void {
+    row: List<Str> = telemetryRow("2026-11-01T12:00:00Z", Telemetry { 1500, 200000, 2510, -48 })
+    t.check(row.size() == telemetryHeader().size(), "a row has a cell for each header column")
+    t.checkStr(row.joinToString(","), "2026-11-01T12:00:00Z,1500,200000,2510,-48", "the cells, comma-separated")
+}
+
 pub main: () Int32 {
     t: Suite { title = "esp32_test - the esp32 library (lines, debounce, command)" }
     linesAreCutAtTheNewline(t)
@@ -409,6 +417,7 @@ pub main: () Int32 {
     backToBackFramesAreBothEmitted(t)
     aBogusLengthDoesNotStallTheStream(t)
     telemetryRoundTrips(t)
+    telemetryRowsAreCells(t)
     telemetryRefusesOtherFrames(t)
     selftestReportIsReadAndAnAbsentSummaryFails(t)
     ina226ConvertsItsRegisters(t)

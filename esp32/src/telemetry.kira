@@ -51,3 +51,13 @@ pub decodeTelemetry: (f: Frame) Maybe<Telemetry> {
         fields
     }
 }
+
+// The cells of a telemetry row, in the order telemetryHeader names them: the stamp the monitor gives it, then the
+// fields as plain numbers.
+pub telemetryHeader: () List<Str> {
+    @listOf("utc", "uptime_ms", "heap_bytes", "temp_centi_c", "rssi_dbm")
+}
+
+pub telemetryRow: (stamp: Str, t: Telemetry) List<Str> {
+    @listOf(stamp, "${t.uptimeMs}", "${t.heapBytes}", "${t.tempCenti}", "${t.rssiDbm}")
+}
