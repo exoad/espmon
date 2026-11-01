@@ -1,0 +1,48 @@
+PROJECTS: List<Str> = @listOf("esp32", "tests", "espmon", "hwtest", "examples")
+KIRA: Str = "..\\vendor\\kira\\build\\install\\kira\\bin\\kira.bat"
+PY: Str = ".venv\\Scripts\\python.exe"
+
+runProgram: (argv: List<Str>) Int32 {
+    p: Maybe<Process> = spawnProcess(argv)
+    p.isNull() ? 127 : p.value.wait()
+}
+
+compileIn: (dir: Str) Int32 {
+    runProgram(@listOf("cmd", "/c", "cd /d ${dir} && ${KIRA} --target py"))
+}
+
+pub main: () Int32 {
+    failed: Mutable<Bool> = false
+    all: List<Str> = args()
+    withMutants: Mutable<Bool> = false
+    for i: Size in 1..all.size() {
+        withMutants = withMutants || all[i] == "--mutants"
+    }
+    for d: Str in PROJECTS {
+        println("== compile ${d}")
+        if compileIn(d) != 0 {
+            println("   FAILED")
+            failed = true
+        } else {
+            println("   ok")
+        }
+    }
+    println("== host tests")
+    if runProgram(@listOf(PY, "tests\\esp32_test_kira.py")) != 0 {
+        println("   FAILED")
+        failed = true
+    } else {
+        println("   ok")
+    }
+    if withMutants {
+        println("== mutation tests")
+        if runProgram(@listOf(PY, "tests\\mutants_kira.py")) != 0 {
+            println("   FAILED")
+            failed = true
+        } else {
+            println("   ok")
+        }
+    }
+    println(failed ? "some checks failed" : "all checks passed")
+    failed ? 1 : 0
+}

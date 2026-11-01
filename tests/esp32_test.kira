@@ -318,7 +318,7 @@ noiseNeverFramesAndAFrameAfterItAlwaysArrives: (t: Suite) Void {
 // Every other frame has a payload byte flipped: those are dropped, and the clean ones between them all arrive.
 corruptedFramesAreDroppedAndTheCleanOnesArrive: (t: Suite) Void {
     seed: Mutable<Int64> = 777
-    r: Receiver = Receiver { }
+    r: Receiver { }
     delivered: Mutable<Int32> = 0
     for round: Int32 in 0..300 {
         bytes: Mutable<List<UInt8>> = encode(1, 1, round, "abcdefgh".bytes()).value
@@ -357,14 +357,14 @@ sequenceKeepsItsTwoBytes: (t: Suite) Void {
 }
 
 aFrameHalfAWindowAheadIsNotNewer: (t: Suite) Void {
-    n: Newest = Newest { }
+    n: Newest { }
     t.check(n.accept(0), "the first frame is newest")
     t.check(!n.accept(32768), "exactly half the window ahead is not newer")
     t.check(n.accept(32767), "one short of half the window ahead is newer")
 }
 
 aReceiverRefusesAnOversizedHeaderAndTheFrameAfterItArrives: (t: Suite) Void {
-    r: Receiver = Receiver { }
+    r: Receiver { }
     data: Mutable<List<UInt8>> { }
     for b: Int32 in @listOf(0x42, 0x57, 1, 1, 0, 0, 0, 0, 0x04, 0x04, 0, 0) {
         data.add(b as UInt8)
@@ -379,7 +379,7 @@ aReceiverRefusesAnOversizedHeaderAndTheFrameAfterItArrives: (t: Suite) Void {
 // A B with no W behind it, then bytes that would read as a 1024-byte length if the B were a header: the frame behind
 // them must still arrive, so the receiver must need both magic bytes before it waits for a length.
 aReceiverNeedsBothMagicBytes: (t: Suite) Void {
-    r: Receiver = Receiver { }
+    r: Receiver { }
     data: Mutable<List<UInt8>> { }
     for b: Int32 in @listOf(0x42, 0x58, 0, 0, 0, 0, 0, 0, 0x00, 0x04, 0, 0) {
         data.add(b as UInt8)
