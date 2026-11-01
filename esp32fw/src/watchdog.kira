@@ -1,0 +1,15 @@
+// The loop task's watchdog: when it is on, the chip resets if loop() runs longer than the task watchdog's timeout
+// (5 s, the ESP32 default). A reset from it reports RESET_TASK_WDT as the reset reason.
+
+pub RESET_TASK_WDT: Int32 = 6
+
+@_extern(cpp = "enableLoopWDT", header = "esp32-hal.h") rawEnable: () Void;
+@_extern(cpp = "disableLoopWDT", header = "esp32-hal.h") rawDisable: () Void;
+
+pub enable: () Void {
+    rawEnable()
+}
+
+pub disable: () Void {
+    rawDisable()
+}

@@ -13,6 +13,7 @@ esp32.fw.wifi as wifi
 esp32.fw.interrupts as interrupts
 esp32.fw.timer as timer
 esp32.fw.nvs as nvs
+esp32.fw.watchdog as watchdog
 esp32.telemetry.Telemetry as Telemetry
 esp32.telemetry.encodeTelemetry as encodeTelemetry
 esp32.fw.timer.HwTimer as HwTimer
@@ -293,6 +294,14 @@ Shell: Mutable<Any> {
                 sendTelemetry()
             }
             console.println("telemetry ${telemetryOn ? "on" : "off"}")
+        } else if verb == "boots" {
+            console.println("boot ${BOOTS}, last reset reason ${LAST_RESET}")
+        } else if verb == "watchdog" {
+            // Stops feeding the watchdog: loop() runs past its timeout, so the chip resets with RESET_TASK_WDT.
+            console.println("watchdog: spinning for 8 s")
+            start: UInt32 = clock.millis()
+            while clock.millis() - start < 8000 {
+            }
         } else if verb == "irq" {
             pinInterruptProbe()
         } else if verb == "wifi" {
@@ -328,7 +337,17 @@ Shell: Mutable<Any> {
 
 SHELL: Mutable<Maybe<Shell>> = null
 
+// Counts every start of the firmware in NVS slot 1, and reads the reason the chip last reset.
+BOOTS: Mutable<Int64> = 0
+LAST_RESET: Mutable<Int32> = 0
+
 pub setup: () Void {
+    LAST_RESET = chip.resetReason()
+    if nvs.open() {
+        BOOTS = nvs.get(1, 0) + 1
+        nvs.put(1, BOOTS)
+    }
+    watchdog.enable()
     shell: Shell { }
     shell.console.begin(115200)
     shell.linkPort.beginOn(115200, 16, 17)
