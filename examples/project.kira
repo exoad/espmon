@@ -1,0 +1,7 @@
+PROJECT: Project { } with {
+    name = "esp32.examples"
+    srcDir = "."
+    target = "py"
+    types = "strict"
+    dependencies = @mapOf("kira_stdlib", "vendor/kira/kira", "esp32", "esp32")
+}

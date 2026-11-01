@@ -11,7 +11,7 @@ import sys
 ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 KIRA = os.path.join(ROOT, "vendor", "kira", "build", "install", "kira", "bin", "kira.bat")
 PY = os.path.join(ROOT, ".venv", "Scripts", "python.exe")
-PROJECTS = ["esp32", "tests", "espmon", "hwtest"]
+PROJECTS = ["esp32", "tests", "espmon", "hwtest", "examples"]
 
 
 def step(title, args, cwd):

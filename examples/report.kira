@@ -1,0 +1,12 @@
+esp32.selftest.Report as Report
+esp32.selftest.readReport as readReport
+
+pub main: () Int32 {
+    r: Report = readReport(@listOf("ok gpio", "FAIL adc: read high", "ok clock", "selftest 2/3"))
+    println("passed ${r.passed} of ${r.total}")
+    for i: Size in 0..r.failures.size() {
+        println(r.failures[i])
+    }
+    println(r.ok() ? "ok" : "not ok")
+    r.ok() ? 0 : 1
+}

@@ -1,0 +1,19 @@
+esp32.frame.Frame as Frame
+esp32.link.Receiver as Receiver
+esp32.telemetry.Telemetry as Telemetry
+esp32.telemetry.decodeTelemetry as decodeTelemetry
+esp32.telemetry.encodeTelemetry as encodeTelemetry
+
+pub main: () Int32 {
+    t: Telemetry { 61000, 250000, 2750, -55 }
+    bytes: List<UInt8> = encodeTelemetry(1, t).value
+    r: Receiver { }
+    for b: UInt8 in bytes {
+        got: Maybe<Frame> = r.push(b)
+        if !got.isNull() {
+            back: Telemetry = decodeTelemetry(got.value).value
+            println("uptime ${back.uptimeMs} ms, heap ${back.heapBytes} B, temp ${back.tempCenti} centi-C, rssi ${back.rssiDbm} dBm")
+        }
+    }
+    0
+}

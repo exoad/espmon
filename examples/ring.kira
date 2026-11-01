@@ -1,0 +1,12 @@
+esp32.ring.Ring as Ring
+
+pub main: () Int32 {
+    r: Ring { 3 }
+    for v: Int64 in 1..6 {
+        r.push(v)
+    }
+    for i: Int32 in 0..r.count() {
+        println("sample ${r.at(i)}")
+    }
+    0
+}

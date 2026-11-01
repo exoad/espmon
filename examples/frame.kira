@@ -1,0 +1,14 @@
+esp32.frame.Frame as Frame
+esp32.frame.encode as encode
+esp32.frame.decode as decode
+
+pub main: () Int32 {
+    bytes: List<UInt8> = encode(3, 1, 42, "abcdefgh".bytes()).value
+    for b: UInt8 in bytes {
+        print("${b.toHex()} ")
+    }
+    println("")
+    f: Frame = decode(bytes).value
+    println("kind ${f.kind} version ${f.ver} seq ${f.seq} payload ${Str.of(f.payload.view())}")
+    0
+}

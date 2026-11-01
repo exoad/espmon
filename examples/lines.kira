@@ -1,0 +1,12 @@
+esp32.lines.LineBuffer as LineBuffer
+
+pub main: () Int32 {
+    buf: LineBuffer { 32 }
+    for b: UInt8 in "hello\r\nworld\n".bytes() {
+        line: Maybe<Str> = buf.push(b)
+        if !line.isNull() {
+            println("line: ${line.value}")
+        }
+    }
+    0
+}
