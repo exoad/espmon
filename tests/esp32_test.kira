@@ -51,14 +51,14 @@ feed: (t: Suite, buf: LineBuffer, text: Str) Maybe<Str> {
 linesAreCutAtTheNewline: (t: Suite) Void {
     buf: LineBuffer { 64 }
     t.check(feed(t, buf, "hel").isNull(), "no line before the newline")
-    t.checkStr(feed(t, buf, "lo\r\n").value, "hello", "the line, its CR dropped")
-    t.checkStr(feed(t, buf, "\n").value, "", "an empty line")
+    t.checkStr(feed(t, buf, "lo\r\n").unwrap(), "hello", "the line, its CR dropped")
+    t.checkStr(feed(t, buf, "\n").unwrap(), "", "an empty line")
 }
 
 aLongLineIsCut: (t: Suite) Void {
     buf: LineBuffer { 4 }
-    t.checkStr(feed(t, buf, "abcdefgh\n").value, "abcd", "cut at the cap")
-    t.checkStr(feed(t, buf, "xy\n").value, "xy", "the next line starts clean")
+    t.checkStr(feed(t, buf, "abcdefgh\n").unwrap(), "abcd", "cut at the cap")
+    t.checkStr(feed(t, buf, "xy\n").unwrap(), "xy", "the next line starts clean")
 }
 
 aPressNeedsItsStreak: (t: Suite) Void {
@@ -87,8 +87,8 @@ commandsAreSplit: (t: Suite) Void {
     c: Command { "  LED on  3 " }
     t.checkStr(c.verb(), "led", "the verb is lower case")
     t.check(c.count() == 2, "two arguments")
-    t.checkStr(c.arg(0).value, "on", "the first argument as typed")
-    t.checkStr(c.arg(1).value, "3", "the second")
+    t.checkStr(c.arg(0).unwrap(), "on", "the first argument as typed")
+    t.checkStr(c.arg(1).unwrap(), "3", "the second")
     t.check(c.arg(2).isNull(), "none past the last")
     e: Command { "   " }
     t.checkStr(e.verb(), "", "a blank line has no verb")
@@ -105,18 +105,18 @@ aFrameRoundTrips: (t: Suite) Void {
     payload: List<UInt8> = "abcdefgh".bytes()
     bytes: Maybe<List<UInt8>> = encode(3, 1, 7, payload)
     t.check(!bytes.isNull(), "an 8-byte payload encodes")
-    t.check(bytes.value.size() == 24, "12 header, 8 payload, 4 CRC")
-    t.check(check(bytes.value) == OK, "its own bytes check")
-    got: Maybe<Frame> = decode(bytes.value)
+    t.check(bytes.unwrap().size() == 24, "12 header, 8 payload, 4 CRC")
+    t.check(check(bytes.unwrap()) == OK, "its own bytes check")
+    got: Maybe<Frame> = decode(bytes.unwrap())
     t.check(!got.isNull(), "and decodes")
-    t.check(got.value.kind == 3 && got.value.ver == 1 && got.value.seq == 7, "kind, version and seq come back")
-    t.checkStr(Str.of(got.value.payload.view()), "abcdefgh", "the payload comes back")
+    t.check(got.unwrap().kind == 3 && got.unwrap().ver == 1 && got.unwrap().seq == 7, "kind, version and seq come back")
+    t.checkStr(Str.of(got.unwrap().payload.view()), "abcdefgh", "the payload comes back")
 }
 
 aSeqWrapsInTwoBytes: (t: Suite) Void {
     bytes: Maybe<List<UInt8>> = encode(1, 1, 65537, List<UInt8> { })
-    got: Maybe<Frame> = decode(bytes.value)
-    t.check(got.value.seq == 1, "a seq past 65535 wraps")
+    got: Maybe<Frame> = decode(bytes.unwrap())
+    t.check(got.unwrap().seq == 1, "a seq past 65535 wraps")
 }
 
 aBadPayloadIsRefused: (t: Suite) Void {
@@ -129,7 +129,7 @@ aBadPayloadIsRefused: (t: Suite) Void {
 }
 
 aFlippedByteFailsTheCrc: (t: Suite) Void {
-    good: List<UInt8> = encode(2, 1, 1, "abcdefgh".bytes()).value
+    good: List<UInt8> = encode(2, 1, 1, "abcdefgh".bytes()).unwrap()
     bad: Mutable<List<UInt8>> { }
     for i: Size in 0..good.size() {
         bad.add(good[i])
@@ -140,7 +140,7 @@ aFlippedByteFailsTheCrc: (t: Suite) Void {
 }
 
 aMalformedFramesAreNamed: (t: Suite) Void {
-    good: List<UInt8> = encode(2, 1, 1, "abcdefgh".bytes()).value
+    good: List<UInt8> = encode(2, 1, 1, "abcdefgh".bytes()).unwrap()
     t.check(check(good.slice(0, 10).toList()) == SHORT, "a header cut short is SHORT")
     t.check(check(good.slice(0, 20).toList()) == SHORT, "a frame cut short is SHORT")
     noMagic: Mutable<List<UInt8>> { }
@@ -185,7 +185,7 @@ receiveAll: (r: Receiver, data: List<UInt8>) List<Frame> {
 
 aFrameArrivesByteByByte: (t: Suite) Void {
     r: Receiver { }
-    got: List<Frame> = receiveAll(r, encode(2, 1, 9, "abcdefgh".bytes()).value)
+    got: List<Frame> = receiveAll(r, encode(2, 1, 9, "abcdefgh".bytes()).unwrap())
     t.check(got.size() == 1, "one frame, completed by its last byte")
     t.check(got.size() == 1 && got[0].seq == 9 && got[0].kind == 2, "and it is the frame sent")
 }
@@ -193,7 +193,7 @@ aFrameArrivesByteByByte: (t: Suite) Void {
 noiseBeforeAFrameIsSkipped: (t: Suite) Void {
     r: Receiver { }
     data: Mutable<List<UInt8>> = "junkBbytes".bytes()
-    for b: UInt8 in encode(1, 1, 3, "wxyz".bytes()).value {
+    for b: UInt8 in encode(1, 1, 3, "wxyz".bytes()).unwrap() {
         data.add(b)
     }
     got: List<Frame> = receiveAll(r, data)
@@ -203,7 +203,7 @@ noiseBeforeAFrameIsSkipped: (t: Suite) Void {
 aCorruptFrameIsDroppedAndTheNextOneArrives: (t: Suite) Void {
     r: Receiver { }
     bad: Mutable<List<UInt8>> { }
-    for b: UInt8 in encode(1, 1, 4, "aaaa".bytes()).value {
+    for b: UInt8 in encode(1, 1, 4, "aaaa".bytes()).unwrap() {
         bad.add(b)
     }
     bad.set(13, bad[13] + 1)
@@ -211,7 +211,7 @@ aCorruptFrameIsDroppedAndTheNextOneArrives: (t: Suite) Void {
     for b: UInt8 in bad {
         data.add(b)
     }
-    for b: UInt8 in encode(1, 1, 5, "bbbb".bytes()).value {
+    for b: UInt8 in encode(1, 1, 5, "bbbb".bytes()).unwrap() {
         data.add(b)
     }
     got: List<Frame> = receiveAll(r, data)
@@ -222,10 +222,10 @@ aCorruptFrameIsDroppedAndTheNextOneArrives: (t: Suite) Void {
 backToBackFramesAreBothEmitted: (t: Suite) Void {
     r: Receiver { }
     data: Mutable<List<UInt8>> { }
-    for b: UInt8 in encode(1, 1, 10, "aaaa".bytes()).value {
+    for b: UInt8 in encode(1, 1, 10, "aaaa".bytes()).unwrap() {
         data.add(b)
     }
-    for b: UInt8 in encode(1, 1, 11, "bbbb".bytes()).value {
+    for b: UInt8 in encode(1, 1, 11, "bbbb".bytes()).unwrap() {
         data.add(b)
     }
     got: List<Frame> = receiveAll(r, data)
@@ -241,7 +241,7 @@ aBogusLengthDoesNotStallTheStream: (t: Suite) Void {
     for b: UInt8 in bogus {
         data.add(b)
     }
-    for b: UInt8 in encode(1, 1, 12, "cccc".bytes()).value {
+    for b: UInt8 in encode(1, 1, 12, "cccc".bytes()).unwrap() {
         data.add(b)
     }
     got: List<Frame> = receiveAll(r, data)
@@ -250,21 +250,21 @@ aBogusLengthDoesNotStallTheStream: (t: Suite) Void {
 
 telemetryRoundTrips: (t: Suite) Void {
     sent: Telemetry { 123456, 98765, -500, -60 }
-    bytes: List<UInt8> = encodeTelemetry(7, sent).value
+    bytes: List<UInt8> = encodeTelemetry(7, sent).unwrap()
     r: Receiver { }
     got: List<Frame> = receiveAll(r, bytes)
     t.check(got.size() == 1, "one telemetry frame comes out of its bytes")
     back: Maybe<Telemetry> = decodeTelemetry(got[0])
     t.check(!back.isNull(), "and it decodes")
-    t.check(back.value.uptimeMs == 123456 && back.value.heapBytes == 98765, "uptime and heap come back")
-    t.check(back.value.tempCenti == -500 && back.value.rssiDbm == -60, "a negative temperature and signal come back")
+    t.check(back.unwrap().uptimeMs == 123456 && back.unwrap().heapBytes == 98765, "uptime and heap come back")
+    t.check(back.unwrap().tempCenti == -500 && back.unwrap().rssiDbm == -60, "a negative temperature and signal come back")
     t.check(got[0].ver == 1 && got[0].kind == 3, "telemetry is framed as kind 3, version 1")
 }
 
 telemetryRefusesOtherFrames: (t: Suite) Void {
-    other: Frame = decode(encode(1, 1, 0, "abcdefgh".bytes()).value).value
+    other: Frame = decode(encode(1, 1, 0, "abcdefgh".bytes()).unwrap()).unwrap()
     t.check(decodeTelemetry(other).isNull(), "a status frame is not telemetry")
-    short: Frame = decode(encode(3, 1, 0, "abcd".bytes()).value).value
+    short: Frame = decode(encode(3, 1, 0, "abcd".bytes()).unwrap()).unwrap()
     t.check(decodeTelemetry(short).isNull(), "telemetry of the wrong size is refused")
 }
 
@@ -314,7 +314,7 @@ noiseNeverFramesAndAFrameAfterItAlwaysArrives: (t: Suite) Void {
     r: Receiver { }
     spurious: List<Frame> = receiveAll(r, noise)
     t.check(spurious.size() == 0, "random bytes complete no frame with a valid CRC")
-    tail: List<UInt8> = encode(2, 1, 99, "fuzzok!!".bytes()).value
+    tail: List<UInt8> = encode(2, 1, 99, "fuzzok!!".bytes()).unwrap()
     got: List<Frame> = receiveAll(r, tail)
     t.check(got.size() == 1 && got[0].seq == 99, "a frame after the noise still arrives")
 }
@@ -325,7 +325,7 @@ corruptedFramesAreDroppedAndTheCleanOnesArrive: (t: Suite) Void {
     r: Receiver { }
     delivered: Mutable<Int32> = 0
     for round: Int32 in 0..300 {
-        bytes: Mutable<List<UInt8>> = encode(1, 1, round, "abcdefgh".bytes()).value
+        bytes: Mutable<List<UInt8>> = encode(1, 1, round, "abcdefgh".bytes()).unwrap()
         if round % 2 == 0 {
             seed = (seed * 1103515245 + 12345) & 0x7FFFFFFF
             at: Size = 12 + (seed % 8) as Size
@@ -337,7 +337,7 @@ corruptedFramesAreDroppedAndTheCleanOnesArrive: (t: Suite) Void {
 }
 
 checkRefusesASecondMagicByteAndAnOversizedLength: (t: Suite) Void {
-    good: List<UInt8> = encode(2, 1, 1, "abcdefgh".bytes()).value
+    good: List<UInt8> = encode(2, 1, 1, "abcdefgh".bytes()).unwrap()
     wrongSecond: Mutable<List<UInt8>> { }
     for b: UInt8 in good {
         wrongSecond.add(b)
@@ -356,8 +356,8 @@ checkRefusesASecondMagicByteAndAnOversizedLength: (t: Suite) Void {
 }
 
 sequenceKeepsItsTwoBytes: (t: Suite) Void {
-    got: Maybe<Frame> = decode(encode(1, 1, 300, "abcd".bytes()).value)
-    t.check(got.value.seq == 300, "a sequence number past 255 keeps its high byte")
+    got: Maybe<Frame> = decode(encode(1, 1, 300, "abcd".bytes()).unwrap())
+    t.check(got.unwrap().seq == 300, "a sequence number past 255 keeps its high byte")
 }
 
 aFrameHalfAWindowAheadIsNotNewer: (t: Suite) Void {
@@ -373,7 +373,7 @@ aReceiverRefusesAnOversizedHeaderAndTheFrameAfterItArrives: (t: Suite) Void {
     for b: Int32 in @listOf(0x42, 0x57, 1, 1, 0, 0, 0, 0, 0x04, 0x04, 0, 0) {
         data.add(b as UInt8)
     }
-    for b: UInt8 in encode(1, 1, 21, "wxyz".bytes()).value {
+    for b: UInt8 in encode(1, 1, 21, "wxyz".bytes()).unwrap() {
         data.add(b)
     }
     got: List<Frame> = receiveAll(r, data)
@@ -388,7 +388,7 @@ aReceiverNeedsBothMagicBytes: (t: Suite) Void {
     for b: Int32 in @listOf(0x42, 0x58, 0, 0, 0, 0, 0, 0, 0x00, 0x04, 0, 0) {
         data.add(b as UInt8)
     }
-    for b: UInt8 in encode(1, 1, 22, "wxyz".bytes()).value {
+    for b: UInt8 in encode(1, 1, 22, "wxyz".bytes()).unwrap() {
         data.add(b)
     }
     got: List<Frame> = receiveAll(r, data)
@@ -404,7 +404,7 @@ telemetryRowsAreCells: (t: Suite) Void {
 fourFrames: () List<UInt8> {
     all: Mutable<List<UInt8>> { }
     for seq: Int32 in 1..5 {
-        for x: UInt8 in encode(1, 1, seq, "abcd".bytes()).value {
+        for x: UInt8 in encode(1, 1, seq, "abcd".bytes()).unwrap() {
             all.add(x)
         }
     }

@@ -2,27 +2,27 @@
 // run time and is never written to the repository.
 
 @_extern(cpp = "String", header = "WString.h") ArduinoString: Struct {
-    pub @_extern(cpp = "c_str") cstr: () Str;
+    pub @_extern(cpp = "c_str") cstr: () Str
 }
 
 @_extern(cpp = "IPAddress", header = "IPAddress.h") IpAddress: Struct {
-    pub @_extern(cpp = "toString") text: () ArduinoString;
+    pub @_extern(cpp = "toString") text: () ArduinoString
 }
 
 @_opaque @_extern(cpp = "WiFiClass", header = "WiFi.h") RawWifi: Mutable<Any> {
-    pub @_mutates @_extern(cpp = "begin") join: (ssid: Str, password: Str) Int32;
-    pub @_mutates @_extern(cpp = "disconnect") leave: () Bool;
-    pub @_mutates @_extern(cpp = "status") status: () Int32;
-    pub @_mutates @_extern(cpp = "isConnected") isConnected: () Bool;
-    pub @_mutates @_extern(cpp = "RSSI") rssi: () Int8;
-    pub @_mutates @_extern(cpp = "localIP") localIp: () IpAddress;
-    pub @_mutates @_extern(cpp = "SSID") linkName: () ArduinoString;
-    pub @_mutates @_extern(cpp = "scanNetworks") scanNetworks: () Int16;
-    pub @_mutates @_extern(cpp = "SSID") networkName: (item: UInt8) ArduinoString;
-    pub @_mutates @_extern(cpp = "RSSI") networkRssi: (item: UInt8) Int32;
+    pub @_mutates @_extern(cpp = "begin") join: (ssid: Str, password: Str) Int32
+    pub @_mutates @_extern(cpp = "disconnect") leave: () Bool
+    pub @_mutates @_extern(cpp = "status") status: () Int32
+    pub @_mutates @_extern(cpp = "isConnected") isConnected: () Bool
+    pub @_mutates @_extern(cpp = "RSSI") rssi: () Int8
+    pub @_mutates @_extern(cpp = "localIP") localIp: () IpAddress
+    pub @_mutates @_extern(cpp = "SSID") linkName: () ArduinoString
+    pub @_mutates @_extern(cpp = "scanNetworks") scanNetworks: () Int16
+    pub @_mutates @_extern(cpp = "SSID") networkName: (item: UInt8) ArduinoString
+    pub @_mutates @_extern(cpp = "RSSI") networkRssi: (item: UInt8) Int32
 }
 
-@_extern(cpp = "&WiFi", header = "WiFi.h") RADIO: RawWifi;
+@_extern(cpp = "&WiFi", header = "WiFi.h") RADIO: RawWifi
 
 // The status codes join and status return, as Arduino's wl_status_t.
 pub WL_IDLE: Int32 = 0

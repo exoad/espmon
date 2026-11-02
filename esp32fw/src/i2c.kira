@@ -1,20 +1,20 @@
 // An I2C bus as controller: scan, write and read registers. The ESP32 has two, Wire and Wire1.
 
 @_opaque @_extern(cpp = "TwoWire", header = "Wire.h") RawWire: Mutable<Any> {
-    pub @_mutates @_extern(cpp = "begin") begin: (sda: Int32, scl: Int32, hz: UInt32) Bool;
-    pub @_mutates @_extern(cpp = "end") end: () Bool;
-    pub @_mutates @_extern(cpp = "setClock") setClock: (hz: UInt32) Bool;
-    pub @_mutates @_extern(cpp = "setTimeOut") setTimeout: (ms: UInt16) Void;
-    pub @_mutates @_extern(cpp = "beginTransmission") beginTransmission: (address: UInt8) Void;
-    pub @_mutates @_extern(cpp = "endTransmission") endTransmission: (stop: Bool) UInt8;
-    pub @_mutates @_extern(cpp = "write") write: (b: UInt8) Size;
-    pub @_mutates @_extern(cpp = "requestFrom") requestFrom: (address: UInt8, count: Size, stop: Bool) Size;
-    pub @_mutates @_extern(cpp = "read") read: () Int32;
-    pub @_mutates @_extern(cpp = "available") available: () Int32;
+    pub @_mutates @_extern(cpp = "begin") begin: (sda: Int32, scl: Int32, hz: UInt32) Bool
+    pub @_mutates @_extern(cpp = "end") end: () Bool
+    pub @_mutates @_extern(cpp = "setClock") setClock: (hz: UInt32) Bool
+    pub @_mutates @_extern(cpp = "setTimeOut") setTimeout: (ms: UInt16) Void
+    pub @_mutates @_extern(cpp = "beginTransmission") beginTransmission: (address: UInt8) Void
+    pub @_mutates @_extern(cpp = "endTransmission") endTransmission: (stop: Bool) UInt8
+    pub @_mutates @_extern(cpp = "write") write: (b: UInt8) Size
+    pub @_mutates @_extern(cpp = "requestFrom") requestFrom: (address: UInt8, count: Size, stop: Bool) Size
+    pub @_mutates @_extern(cpp = "read") read: () Int32
+    pub @_mutates @_extern(cpp = "available") available: () Int32
 }
 
-@_extern(cpp = "&Wire", header = "Wire.h") WIRE0: RawWire;
-@_extern(cpp = "&Wire1", header = "Wire.h") WIRE1: RawWire;
+@_extern(cpp = "&Wire", header = "Wire.h") WIRE0: RawWire
+@_extern(cpp = "&Wire1", header = "Wire.h") WIRE1: RawWire
 
 // A transfer's outcome as Wire reports it: 0 is success, 1 too long, 2 no acknowledge of the address, 3 no acknowledge of the data, 4 other, 5 timeout.
 pub I2C_OK: Int32 = 0

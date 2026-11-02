@@ -185,7 +185,7 @@ Shell: Mutable<Any> {
         }
         frame: Maybe<List<UInt8>> = encode(1, 1, linkSeq, body)
         linkSeq = (linkSeq + 1) % 65536
-        for b: UInt8 in frame.value {
+        for b: UInt8 in frame.unwrap() {
             linkPort.write(b)
         }
         sent += 1
@@ -210,7 +210,7 @@ Shell: Mutable<Any> {
     drainLink: () Void {
         b: Mutable<Maybe<UInt8>> = linkPort.read()
         while !b.isNull() {
-            got: Maybe<Frame> = inbound.push(b.value)
+            got: Maybe<Frame> = inbound.push(b.unwrap())
             if !got.isNull() {
                 received += 1
                 console.println("link received kind ${got.value.kind} seq ${got.value.seq} bytes ${got.value.payload.size()}")
@@ -227,10 +227,16 @@ Shell: Mutable<Any> {
         if !nvs.open() {
             console.println("nvs: could not open the store")
         } else {
-            sub: Str = c.arg(0).isNull() ? "get" : c.arg(0).value
+            sub: Str = c.arg(0).unwrapOr("get")
             if sub == "set" && !c.arg(1).isNull() {
-                saved: Bool = nvs.put(0, c.arg(1).value.toInt64().value)
-                console.println("nvs set ${c.arg(1).value} saved ${saved}")
+                text: Str = c.arg(1).unwrap()
+                n: Maybe<Int64> = text.toInt64()
+                if n.isNull() {
+                    console.println("nvs: ${text} is not a whole number")
+                } else {
+                    saved: Bool = nvs.put(0, n.value)
+                    console.println("nvs set ${text} saved ${saved}")
+                }
             } else {
                 console.println("nvs value ${nvs.get(0, -1)}")
             }
@@ -238,7 +244,7 @@ Shell: Mutable<Any> {
     }
 
     wifiCommand: (c: Command) Void {
-        sub: Str = c.arg(0).isNull() ? "" : c.arg(0).value
+        sub: Str = c.arg(0).unwrapOr("")
         if sub == "scan" {
             found: Int32 = wifi.scan()
             console.println("wifi networks ${found}")
@@ -246,9 +252,9 @@ Shell: Mutable<Any> {
                 console.println("  ${wifi.networkRssiAt(i)} dBm ${wifi.networkAt(i)}")
             }
         } else if sub == "join" && !c.arg(1).isNull() {
-            pass: Str = c.arg(2).isNull() ? "" : c.arg(2).value
-            wifi.join(c.arg(1).value, pass)
-            console.println("wifi joining ${c.arg(1).value}")
+            pass: Str = c.arg(2).unwrapOr("")
+            wifi.join(c.arg(1).unwrap(), pass)
+            console.println("wifi joining ${c.arg(1).unwrap()}")
         } else if sub == "status" {
             console.println("wifi status ${wifi.status()} connected ${wifi.isConnected()} network ${wifi.linkNetwork()} address ${wifi.address()} rssi ${wifi.rssi()}")
         } else if sub == "leave" {
@@ -266,7 +272,7 @@ Shell: Mutable<Any> {
             if c.arg(0).isNull() {
                 console.println("led ${lit ? "on" : "off"}")
             } else {
-                show(c.arg(0).value == "on")
+                show(c.arg(0).unwrap() == "on")
             }
         } else if verb == "temp" {
             console.println("temp ${chip.temperatureC()} C")
@@ -277,7 +283,7 @@ Shell: Mutable<Any> {
         } else if verb == "button" {
             console.println("button ${pressed ? "down" : "up"}")
         } else if verb == "link" {
-            sub: Str = c.arg(0).isNull() ? "" : c.arg(0).value
+            sub: Str = c.arg(0).unwrapOr("")
             if sub == "send" {
                 sendStatus()
             } else {
@@ -289,7 +295,7 @@ Shell: Mutable<Any> {
             console.println("restarting")
             chip.restart()
         } else if verb == "telemetry" {
-            sub: Str = c.arg(0).isNull() ? "" : c.arg(0).value
+            sub: Str = c.arg(0).unwrapOr("")
             if sub == "on" {
                 telemetryOn = true
             } else if sub == "off" {
@@ -307,12 +313,12 @@ Shell: Mutable<Any> {
             while clock.millis() - start < 8000 {
             }
         } else if verb == "bridge" {
-            sub: Str = c.arg(0).isNull() ? "pass" : c.arg(0).value
+            sub: Str = c.arg(0).unwrapOr("pass")
             mode: Int32 = sub == "drop" ? DROP : sub == "corrupt" ? CORRUPT : PASS
-            every: Int32 = c.arg(1).isNull() ? 2 : c.arg(1).value.toInt64().unwrapOr(2) as Int32
+            every: Int32 = c.arg(1).unwrapOr("").toInt64().unwrapOr(2) as Int32
             br: Bridge { mode = mode, every = every }
             for seq: Int32 in 1..5 {
-                for x: UInt8 in encode(1, 1, seq, "abcd".bytes()).value {
+                for x: UInt8 in encode(1, 1, seq, "abcd".bytes()).unwrap() {
                     for y: UInt8 in br.feed(x) {
                         console.write(y)
                     }
@@ -338,7 +344,7 @@ Shell: Mutable<Any> {
         }
         b: Mutable<Maybe<UInt8>> = console.read()
         while !b.isNull() {
-            line: Maybe<Str> = buf.push(b.value)
+            line: Maybe<Str> = buf.push(b.unwrap())
             if !line.isNull() {
                 run(line.value)
             }
@@ -376,7 +382,7 @@ pub setup: () Void {
 
 pub loop: () Void {
     if !SHELL.isNull() {
-        SHELL.value.tick()
+        SHELL.unwrap().tick()
     }
     clock.delay(POLL_MS)
 }

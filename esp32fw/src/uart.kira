@@ -1,21 +1,21 @@
 // A hardware UART: the USB console is uart0; uart1 and uart2 take any pins.
 
 @_opaque @_extern(cpp = "HardwareSerial", header = "HardwareSerial.h") RawUart: Mutable<Any> {
-    pub @_mutates @_extern(cpp = "begin") begin: (baud: UInt32) Void;
-    pub @_mutates @_extern(cpp = "begin") beginOn: (baud: UInt32, config: UInt32, rx: Int8, tx: Int8) Void;
-    pub @_mutates @_extern(cpp = "end") end: () Void;
-    pub @_mutates @_extern(cpp = "print") print: (text: Str) Size;
-    pub @_mutates @_extern(cpp = "println") println: (text: Str) Size;
-    pub @_mutates @_extern(cpp = "write") write: (b: UInt8) Size;
-    pub @_mutates @_extern(cpp = "read") read: () Int32;
-    pub @_mutates @_extern(cpp = "available") available: () Int32;
-    pub @_mutates @_extern(cpp = "flush") flush: () Void;
+    pub @_mutates @_extern(cpp = "begin") begin: (baud: UInt32) Void
+    pub @_mutates @_extern(cpp = "begin") beginOn: (baud: UInt32, config: UInt32, rx: Int8, tx: Int8) Void
+    pub @_mutates @_extern(cpp = "end") end: () Void
+    pub @_mutates @_extern(cpp = "print") print: (text: Str) Size
+    pub @_mutates @_extern(cpp = "println") println: (text: Str) Size
+    pub @_mutates @_extern(cpp = "write") write: (b: UInt8) Size
+    pub @_mutates @_extern(cpp = "read") read: () Int32
+    pub @_mutates @_extern(cpp = "available") available: () Int32
+    pub @_mutates @_extern(cpp = "flush") flush: () Void
 }
 
-@_extern(cpp = "&Serial", header = "HardwareSerial.h") SERIAL0: RawUart;
-@_extern(cpp = "&Serial1", header = "HardwareSerial.h") SERIAL1: RawUart;
-@_extern(cpp = "&Serial2", header = "HardwareSerial.h") SERIAL2: RawUart;
-@_extern(cpp = "SERIAL_8N1", header = "HardwareSerial.h") SERIAL_8N1: UInt32;
+@_extern(cpp = "&Serial", header = "HardwareSerial.h") SERIAL0: RawUart
+@_extern(cpp = "&Serial1", header = "HardwareSerial.h") SERIAL1: RawUart
+@_extern(cpp = "&Serial2", header = "HardwareSerial.h") SERIAL2: RawUart
+@_extern(cpp = "SERIAL_8N1", header = "HardwareSerial.h") SERIAL_8N1: UInt32
 
 pub Uart: Mutable<Any> {
     raw: RawUart

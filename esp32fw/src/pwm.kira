@@ -1,10 +1,10 @@
 // PWM on any output pin, through the LEDC peripheral.
 
-@_extern(cpp = "ledcAttach", header = "Arduino.h") rawAttach: (pin: UInt8, hz: UInt32, bits: UInt8) Bool;
-@_extern(cpp = "ledcDetach", header = "Arduino.h") rawDetach: (pin: UInt8) Bool;
-@_extern(cpp = "ledcWrite", header = "Arduino.h") rawWrite: (pin: UInt8, duty: UInt32) Bool;
-@_extern(cpp = "ledcRead", header = "Arduino.h") rawRead: (pin: UInt8) UInt32;
-@_extern(cpp = "ledcWriteTone", header = "Arduino.h") rawTone: (pin: UInt8, hz: UInt32) UInt32;
+@_extern(cpp = "ledcAttach", header = "Arduino.h") rawAttach: (pin: UInt8, hz: UInt32, bits: UInt8) Bool
+@_extern(cpp = "ledcDetach", header = "Arduino.h") rawDetach: (pin: UInt8) Bool
+@_extern(cpp = "ledcWrite", header = "Arduino.h") rawWrite: (pin: UInt8, duty: UInt32) Bool
+@_extern(cpp = "ledcRead", header = "Arduino.h") rawRead: (pin: UInt8) UInt32
+@_extern(cpp = "ledcWriteTone", header = "Arduino.h") rawTone: (pin: UInt8, hz: UInt32) UInt32
 
 // Puts a pin under PWM at hz with a duty of the given bit width; whether it took.
 pub attach: (pin: Int32, hz: Int64, bits: Int32) Bool {

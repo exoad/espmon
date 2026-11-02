@@ -33,7 +33,7 @@ pub main: () Int32 {
     }
     parsed: Parsed = spec.parse(argv)
     port: Serial {}
-    if !port.open(parsed.textOf("--port").value, parsed.wholeOf("--baud").value as Int32) {
+    if !port.open(parsed.textOf("--port").unwrap(), parsed.wholeOf("--baud").unwrap() as Int32) {
         eprint("espmon: ${lastError()}\n")
         1
     } else {
@@ -51,8 +51,8 @@ pub main: () Int32 {
         if csvPath != "" && csvFile.isNull() {
             eprint("espmon: cannot open ${csvPath}\n")
             stop.store(true)
-        } else if csvPath != "" && csvFile.value.size() == 0 {
-            csvFile.value.write(csvLine(telemetryHeader()).bytes())
+        } else if csvPath != "" && csvFile.unwrap().size() == 0 {
+            csvFile.unwrap().write(csvLine(telemetryHeader()).bytes())
         }
         while !stop.load() {
             n: Int64 = port.read(buf.from(0), READ_MS)
@@ -64,7 +64,7 @@ pub main: () Int32 {
                     if telemetry {
                         got: Maybe<Frame> = frames.push(buf.get(i))
                         if !got.isNull() && !decodeTelemetry(got.value).isNull() {
-                            t: Telemetry = decodeTelemetry(got.value).value
+                            t: Telemetry = decodeTelemetry(got.value).unwrap()
                             stamp: Str = utcStamp(wallNowNs())
                             println("${stamp} uptime ${t.uptimeMs} ms heap ${t.heapBytes} B temp ${t.tempCenti} centi-C rssi ${t.rssiDbm} dBm")
                             if !csvFile.isNull() {

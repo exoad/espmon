@@ -17,7 +17,7 @@ pub Bridge: Mutable<Any> {
         got: Maybe<Frame> = rx.push(b)
         if !got.isNull() {
             seen += 1
-            wire: List<UInt8> = encode(got.value.kind, got.value.ver, got.value.seq, got.value.payload).value
+            wire: List<UInt8> = encode(got.value.kind, got.value.ver, got.value.seq, got.value.payload).unwrap()
             faulted: Bool = mode != PASS && seen % every == 0
             dropping: Bool = faulted && mode == DROP
             flipping: Bool = faulted && mode == CORRUPT

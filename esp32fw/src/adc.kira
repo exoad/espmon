@@ -1,8 +1,8 @@
 // The analog inputs: ADC1 works always, ADC2 (GPIO 0, 2, 4, 12 to 15, 25 to 27) not while Wi-Fi is on.
 
-@_extern(cpp = "analogRead", header = "Arduino.h") rawRead: (pin: UInt8) UInt16;
-@_extern(cpp = "analogReadMilliVolts", header = "Arduino.h") rawMilliVolts: (pin: UInt8) UInt32;
-@_extern(cpp = "analogReadResolution", header = "Arduino.h") rawResolution: (bits: UInt8) Void;
+@_extern(cpp = "analogRead", header = "Arduino.h") rawRead: (pin: UInt8) UInt16
+@_extern(cpp = "analogReadMilliVolts", header = "Arduino.h") rawMilliVolts: (pin: UInt8) UInt32
+@_extern(cpp = "analogReadResolution", header = "Arduino.h") rawResolution: (bits: UInt8) Void
 
 // How many bits a reading has, 9 to 12.
 pub resolution: (bits: Int32) Void {

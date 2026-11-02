@@ -6,12 +6,12 @@ esp32.telemetry.encodeTelemetry as encodeTelemetry
 
 pub main: () Int32 {
     t: Telemetry { 61000, 250000, 2750, -55 }
-    bytes: List<UInt8> = encodeTelemetry(1, t).value
+    bytes: List<UInt8> = encodeTelemetry(1, t).unwrap()
     r: Receiver { }
     for b: UInt8 in bytes {
         got: Maybe<Frame> = r.push(b)
         if !got.isNull() {
-            back: Telemetry = decodeTelemetry(got.value).value
+            back: Telemetry = decodeTelemetry(got.value).unwrap()
             println("uptime ${back.uptimeMs} ms, heap ${back.heapBytes} B, temp ${back.tempCenti} centi-C, rssi ${back.rssiDbm} dBm")
         }
     }

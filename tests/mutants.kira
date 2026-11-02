@@ -82,7 +82,7 @@ pub main: () Int32 {
             if m.file.contains(filt) {
                 chosen += 1
                 path: Str = "esp32/src/" + m.file
-                original: Str = readText(path).value
+                original: Str = readText(path).unwrap()
                 if original.split(m.old).size() != 2 {
                     stale += 1
                     println("STALE      ${m.file}: ${m.why}")

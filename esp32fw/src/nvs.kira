@@ -2,13 +2,13 @@
 // NVS: a slot is a valid marker and four little-endian bytes. A slot never written reads its fallback.
 
 @_opaque @_extern(cpp = "EEPROMClass", header = "EEPROM.h") RawEeprom: Mutable<Any> {
-    pub @_mutates @_extern(cpp = "begin") begin: (size: Size) Bool;
-    pub @_mutates @_extern(cpp = "read") read: (address: Int32) UInt8;
-    pub @_mutates @_extern(cpp = "write") write: (address: Int32, value: UInt8) Void;
-    pub @_mutates @_extern(cpp = "commit") commit: () Bool;
+    pub @_mutates @_extern(cpp = "begin") begin: (size: Size) Bool
+    pub @_mutates @_extern(cpp = "read") read: (address: Int32) UInt8
+    pub @_mutates @_extern(cpp = "write") write: (address: Int32, value: UInt8) Void
+    pub @_mutates @_extern(cpp = "commit") commit: () Bool
 }
 
-@_extern(cpp = "&EEPROM", header = "EEPROM.h") EEPROM_: RawEeprom;
+@_extern(cpp = "&EEPROM", header = "EEPROM.h") EEPROM_: RawEeprom
 
 // Bytes per slot: the marker, then the value.
 SLOT_BYTES: Int32 = 5

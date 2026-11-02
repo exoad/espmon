@@ -3,8 +3,8 @@
 
 pub RESET_TASK_WDT: Int32 = 6
 
-@_extern(cpp = "enableLoopWDT", header = "esp32-hal.h") rawEnable: () Void;
-@_extern(cpp = "disableLoopWDT", header = "esp32-hal.h") rawDisable: () Void;
+@_extern(cpp = "enableLoopWDT", header = "esp32-hal.h") rawEnable: () Void
+@_extern(cpp = "disableLoopWDT", header = "esp32-hal.h") rawDisable: () Void
 
 pub enable: () Void {
     rawEnable()
